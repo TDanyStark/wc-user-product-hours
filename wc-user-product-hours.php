@@ -19,7 +19,7 @@ class WC_User_Product_Hours
 {
 
     // IDs de los productos que acumulan horas
-    private $productos_con_horas = array(123, 456, 789, 101112); // Cambia estos IDs por los tuyos
+    private $productos_con_horas = array(3701); // Cambia estos IDs por los tuyos
 
     public function __construct()
     {
