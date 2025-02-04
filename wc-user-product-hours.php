@@ -131,60 +131,62 @@ class WC_User_Product_Hours
 
     // Nueva función de validación
     public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null) {
-        error_log('[DEBUG] Inicio validación de horas. Producto ID: ' . $product_id . ' - Usuario ID: ' . get_current_user_id());
+        error_log('[DEBUG] Inicio validación. Producto ID: ' . $product_id);
         
         try {
+            // Solo si es producto reservable relacionado
             if (array_key_exists($product_id, $this->relacion_productos)) {
-                error_log('[DEBUG] Producto reservable detectado. Relación encontrada: ' . $product_id . ' => ' . $this->relacion_productos[$product_id]);
+                error_log('[DEBUG] Producto reservable detectado: ' . $product_id);
                 
-                $producto_horas_id = $this->relacion_productos[$product_id];
-                $user_id = get_current_user_id();
-                
-                error_log('[DEBUG] Usuario ID: ' . $user_id . ' - Horas solicitadas: ' . $quantity);
-                
-                if ($user_id === 0) {
-                    error_log('[ERROR] Usuario no registrado. Validación fallida.');
-                    wc_add_notice(__('Debes iniciar sesión para reservar horas', 'wc-user-product-hours'), 'error');
+                // Obtener duración desde el formulario de booking
+                $duracion = isset($_POST['wc_bookings_field_duration']) ? (int)$_POST['wc_bookings_field_duration'] : 0;
+                error_log('[DEBUG] Duración seleccionada: ' . $duracion . ' horas');
+
+                // Validar duración válida
+                if ($duracion <= 0) {
+                    error_log('[ERROR] Duración no detectada en $_POST');
+                    wc_add_notice(__('Selecciona una duración válida', 'WC-User-Product-Hours'), 'error');
                     return false;
                 }
 
+                $user_id = get_current_user_id();
+                error_log('[DEBUG] Usuario ID: ' . $user_id);
+                
+                if ($user_id === 0) {
+                    error_log('[ERROR] Usuario no autenticado');
+                    wc_add_notice(__('Debes iniciar sesión para reservar', 'WC-User-Product-Hours'), 'error');
+                    return false;
+                }
+
+                // Obtener horas disponibles
                 $horas_disponibles = $this->obtener_horas_acumuladas($user_id);
                 error_log('[DEBUG] Horas disponibles: ' . $horas_disponibles);
                 
-                $producto_horas = wc_get_product($producto_horas_id);
-                
-                if (!$producto_horas) {
-                    error_log('[ERROR CRÍTICO] Producto de horas no encontrado. ID: ' . $producto_horas_id);
-                    wc_add_notice(__('Error en la configuración de reservas', 'wc-user-product-hours'), 'error');
-                    return false;
-                }
-                
-                error_log('[DEBUG] Producto de horas encontrado: ' . $producto_horas->get_name());
-                
-                if ($horas_disponibles < $quantity) {
-                    error_log('[VALIDACIÓN FALLIDA] Horas solicitadas: ' . $quantity . ' | Disponibles: ' . $horas_disponibles);
+                // Comparar con duración seleccionada
+                if ($horas_disponibles < $duracion) {
+                    error_log('[VALIDACIÓN FALLIDA] Horas solicitadas: ' . $duracion . ' | Disponibles: ' . $horas_disponibles);
                     
+                    $producto_horas_id = $this->relacion_productos[$product_id];
+                    $producto_horas = wc_get_product($producto_horas_id);
                     $enlace_compra = $producto_horas->get_permalink();
-                    error_log('[DEBUG] Enlace de compra generado: ' . $enlace_compra);
                     
                     wc_add_notice(sprintf(
-                        __('No tienes suficientes horas disponibles. Necesitas %1$s horas. <a href="%2$s" class="alert-link">Compra más horas aquí</a>', 'wc-user-product-hours'),
-                        $quantity,
+                        __('Necesitas %1$s horas para esta reserva. Dispones de %2$s. <a href="%3$s">Compra más horas</a>', 'WC-User-Product-Hours'),
+                        $duracion,
+                        $horas_disponibles,
                         $enlace_compra
                     ), 'error');
                     
                     return false;
                 }
                 
-                error_log('[VALIDACIÓN EXITOSA] Horas suficientes disponibles');
-            } else {
-                error_log('[DEBUG] Producto no requiere validación de horas. ID: ' . $product_id);
+                error_log('[VALIDACIÓN EXITOSA] Horas suficientes');
             }
             
             return $passed;
             
         } catch (Exception $e) {
-            error_log('[EXCEPCIÓN] Error en validación: ' . $e->getMessage());
+            error_log('[EXCEPCIÓN] Error: ' . $e->getMessage());
             return false;
         }
     }
