@@ -5,6 +5,7 @@
  * Description: Guarda el ID del producto y las horas de la variación en metadatos de usuario después de cada compra.
  * Version: 1.0.0
  * Author: Tu Nombre
+ * GitHub Plugin URI: https://github.com/TDanyStark/wc-user-product-hours
  * Author URI: https://daniel-amado.com/
  * License: GPLv2 or later
  * Text Domain: WC-User-Product-Hours
