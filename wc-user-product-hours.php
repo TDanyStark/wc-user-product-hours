@@ -69,9 +69,52 @@ class WC_User_Product_Hours
 
     private function obtener_horas_variacion($variation_id) {
         $variation = wc_get_product($variation_id);
+        
+        error_log("[OBTENER_HORAS] Procesando variación ID: {$variation_id}");
+        
+        // 1. Intentar obtener de atributo del producto
+        $atributo_horas = 'pa_duracion'; // Cambiar por el slug real de tu atributo
+        $duracion = $variation->get_attribute($atributo_horas);
+        
+        if (!empty($duracion)) {
+            error_log("[OBTENER_HORAS] Encontrado en atributo {$atributo_horas}: {$duracion}");
+            preg_match('/\d+/', $duracion, $matches);
+            $horas = isset($matches[0]) ? (int)$matches[0] : 0;
+            error_log("[OBTENER_HORAS] Horas desde atributo: {$horas}");
+            return $horas;
+        }
+        
+        // 2. Intentar obtener de meta key
+        $meta_key = '_horas_variacion'; // Cambiar por tu meta key real
+        $horas_meta = $variation->get_meta($meta_key, true);
+        
+        if (!empty($horas_meta)) {
+            error_log("[OBTENER_HORAS] Encontrado en meta {$meta_key}: {$horas_meta}");
+            return (int)$horas_meta;
+        }
+        
+        // 3. Intentar extraer de nombre con regex mejorada
         $nombre = $variation->get_name();
+        error_log("[OBTENER_HORAS] Analizando nombre: {$nombre}");
+        
+        // Regex mejorada para capturar formato "X horas"
+        preg_match('/\b(\d+)\s*(?:h|hr|hs|hour|hours)\b/i', $nombre, $matches);
+        
+        if (isset($matches[1])) {
+            error_log("[OBTENER_HORAS] Encontrado en nombre: {$matches[1]} horas");
+            return (int)$matches[1];
+        }
+        
+        // 4. Último recurso: buscar cualquier número
         preg_match('/\d+/', $nombre, $matches);
-        return isset($matches[0]) ? (int)$matches[0] : 0;
+        $horas = isset($matches[0]) ? (int)$matches[0] : 0;
+        error_log("[OBTENER_HORAS] Último recurso - Número encontrado: {$horas}");
+        
+        if($horas === 0) {
+            error_log("[OBTENER_HORAS] ¡ADVERTENCIA! No se detectaron horas en la variación");
+        }
+        
+        return $horas;
     }
 
     private function guardar_meta_usuario($user_id, $product_id, $variation_id) {
