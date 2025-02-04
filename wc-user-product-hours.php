@@ -64,7 +64,7 @@ class WC_User_Product_Hours {
         $horas = $variation->get_attribute('pa_horas');
         
         // Alternativa: Obtener de meta datos
-        // $horas = $variation->get_meta('_horas', true); //
+        // $horas = $variation->get_meta('_horas', true);
         
         return $horas ?: false;
     }
