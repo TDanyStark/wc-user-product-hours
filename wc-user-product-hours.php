@@ -130,7 +130,7 @@ class WC_User_Product_Hours
     }
 
     // Nueva función de validación
-    public function validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null) {
+    public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null) {
         error_log('[DEBUG] Inicio validación de horas. Producto ID: ' . $product_id . ' - Usuario ID: ' . get_current_user_id());
         
         try {
