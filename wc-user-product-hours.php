@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Plugin Name: WC User Product Hours
  * Plugin URI: https://daniel-amado.com/
@@ -11,15 +12,22 @@
  * Text Domain: WC-User-Product-Hours
  */
 
+
 defined('ABSPATH') || exit;
 
-class WC_User_Product_Hours {
+class WC_User_Product_Hours
+{
 
-    public function __construct() {
+    // IDs de los productos que acumulan horas
+    private $productos_con_horas = array(123, 456, 789, 101112); // Cambia estos IDs por los tuyos
+
+    public function __construct()
+    {
         add_action('woocommerce_order_status_completed', array($this, 'guardar_datos_compra'));
     }
 
-    public function guardar_datos_compra($order_id) {
+    public function guardar_datos_compra($order_id)
+    {
         $order = wc_get_order($order_id);
         $user_id = $order->get_user_id();
 
@@ -27,27 +35,46 @@ class WC_User_Product_Hours {
 
         foreach ($order->get_items() as $item) {
             $product_id = $item->get_product_id();
-            $variation_id = $item->get_variation_id();
 
-            if ($variation_id) {
-                $this->guardar_meta_usuario(
-                    $user_id,
-                    $product_id,
-                    $variation_id
-                );
+            // Solo procesar si el producto está en la lista de productos con horas
+            if (in_array($product_id, $this->productos_con_horas)) {
+                $variation_id = $item->get_variation_id();
+
+                if ($variation_id) {
+                    $this->guardar_meta_usuario(
+                        $user_id,
+                        $product_id,
+                        $variation_id
+                    );
+                }
             }
         }
     }
 
-    private function guardar_meta_usuario($user_id, $product_id, $variation_id) {
-        $horas = $this->obtener_horas_variacion($variation_id);
-        
-        if (!$horas) return;
+    private function guardar_meta_usuario($user_id, $product_id, $variation_id)
+    {
+        $horas_compradas = $this->obtener_horas_variacion($variation_id);
 
+        if (!$horas_compradas) return;
+
+        // Obtener horas acumuladas actuales
+        $horas_acumuladas = $this->obtener_horas_acumuladas($user_id);
+
+        // Sumar las nuevas horas
+        $nuevas_horas = $horas_acumuladas + $horas_compradas;
+
+        // Guardar o actualizar las horas acumuladas
+        update_user_meta(
+            $user_id,
+            'wc_horas_acumuladas',
+            $nuevas_horas
+        );
+
+        // Guardar registro individual de la compra
         $meta_data = array(
             'product_id'    => $product_id,
             'variation_id'  => $variation_id,
-            'horas'         => $horas,
+            'horas'         => $horas_compradas,
             'fecha_compra'  => current_time('mysql')
         );
 
@@ -58,16 +85,18 @@ class WC_User_Product_Hours {
         );
     }
 
-    private function obtener_horas_variacion($variation_id) {
+    private function obtener_horas_variacion($variation_id)
+    {
         $variation = wc_get_product($variation_id);
-        
-        // Obtener el nombre de la variación (que es el número de horas)
         $nombre_variacion = $variation->get_name();
-        
-        // Extraer el número de horas del nombre de la variación
         preg_match('/\d+/', $nombre_variacion, $matches);
-        
-        return $matches[0] ?? false;
+        return $matches[0] ?? 0;
+    }
+
+    private function obtener_horas_acumuladas($user_id)
+    {
+        $horas_acumuladas = get_user_meta($user_id, 'wc_horas_acumuladas', true);
+        return $horas_acumuladas ? (int)$horas_acumuladas : 0;
     }
 }
 
