@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: WC User Product Hours
+ * Plugin Name: WC User Product Hour
  * Plugin URI: https://daniel-amado.com/
  * Description: Guarda el ID del producto y las horas de la variación en metadatos de usuario después de cada compra.
  * Version: 1.0.0
  * Author: Tu Nombre
  * Author URI: https://daniel-amado.com/
  * License: GPLv2 or later
- * Text Domain: wc-user-product-hours
+ * Text Domain: WC-User-Product-Hours
  */
 
 defined('ABSPATH') || exit;
