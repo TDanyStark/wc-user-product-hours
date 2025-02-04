@@ -60,13 +60,13 @@ class WC_User_Product_Hours {
     private function obtener_horas_variacion($variation_id) {
         $variation = wc_get_product($variation_id);
         
-        // Obtener horas de un atributo de variación (personalizar según tu configuración)
-        $horas = $variation->get_attribute('pa_horas');
+        // Obtener el nombre de la variación (que es el número de horas)
+        $nombre_variacion = $variation->get_name();
         
-        // Alternativa: Obtener de meta datos
-        // $horas = $variation->get_meta('_horas', true);
+        // Extraer el número de horas del nombre de la variación
+        preg_match('/\d+/', $nombre_variacion, $matches);
         
-        return $horas ?: false;
+        return $matches[0] ?? false;
     }
 }
 
