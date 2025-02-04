@@ -17,14 +17,11 @@ defined('ABSPATH') || exit;
 
 class WC_User_Product_Hours
 {   
-    // Relación entre productos reservables y productos de horas
+    private $productos_con_horas = array(3701, 3802, 3855, 3844);
     private $relacion_productos = array(
-        3722 => 3701, // Producto reservable => Producto de horas
-        // Agrega más relaciones según necesites: 3733 => 3711, etc.
+        3722 => 3701, // Booking => Producto de horas
+        // Agrega más relaciones según necesites
     );
-
-    // IDs de los productos que acumulan horas
-    private $productos_con_horas = array(3701); // Cambia estos IDs por los tuyos
 
     public function __construct()
     {
@@ -70,63 +67,53 @@ class WC_User_Product_Hours
         }
     }
 
-    private function guardar_meta_usuario($user_id, $product_id, $variation_id)
-    {
-        error_log('Iniciando guardar_meta_usuario para el usuario: ' . $user_id);
+    private function obtener_horas_variacion($variation_id) {
+        $variation = wc_get_product($variation_id);
+        $nombre = $variation->get_name();
+        preg_match('/\d+/', $nombre, $matches);
+        return isset($matches[0]) ? (int)$matches[0] : 0;
+    }
 
+    private function guardar_meta_usuario($user_id, $product_id, $variation_id) {
+        error_log("[DEBUG] Iniciando guardar_meta_usuario para producto: {$product_id}");
+    
         $horas_compradas = $this->obtener_horas_variacion($variation_id);
         error_log('Horas compradas: ' . $horas_compradas);
-
+    
         if (!$horas_compradas) {
             error_log('No se encontraron horas compradas. Saliendo...');
             return;
         }
-
-        // Obtener horas acumuladas actuales
+    
+        // Obtener horas acumuladas ACTUALIZADO
         $horas_acumuladas = $this->obtener_horas_acumuladas($user_id);
-        error_log('Horas acumuladas actuales: ' . $horas_acumuladas);
-
-        // Sumar las nuevas horas
-        $nuevas_horas = $horas_acumuladas + $horas_compradas;
-        error_log('Nuevas horas acumuladas: ' . $nuevas_horas);
-
-        // Guardar o actualizar las horas acumuladas
+        error_log('Horas acumuladas antes: ' . print_r($horas_acumuladas, true));
+    
+        // Sumar horas al producto específico
+        $horas_acumuladas[$product_id] = isset($horas_acumuladas[$product_id]) 
+            ? $horas_acumuladas[$product_id] + $horas_compradas 
+            : $horas_compradas;
+    
+        error_log('Horas acumuladas después: ' . print_r($horas_acumuladas, true));
+    
+        // Guardar estructura actualizada
         update_user_meta(
             $user_id,
             'wc_horas_acumuladas',
-            $nuevas_horas
+            $horas_acumuladas
         );
-        error_log('Horas acumuladas actualizadas correctamente.');
-
-        // Guardar registro individual de la compra
-        $meta_data = array(
-            'product_id'    => $product_id,
-            'variation_id'  => $variation_id,
-            'horas'         => $horas_compradas,
-            'fecha_compra'  => current_time('mysql')
-        );
-
-        add_user_meta(
-            $user_id,
-            'wc_producto_horas',
-            $meta_data
-        );
-        error_log('Meta datos de la compra guardados correctamente.');
+    
     }
-
-    private function obtener_horas_variacion($variation_id)
-    {
-        $variation = wc_get_product($variation_id);
-        $nombre_variacion = $variation->get_name();
-        preg_match('/\d+/', $nombre_variacion, $matches);
-        return $matches[0] ?? 0;
-    }
-
-    private function obtener_horas_acumuladas($user_id)
-    {
-        $horas_acumuladas = get_user_meta($user_id, 'wc_horas_acumuladas', true);
-        error_log('[DEBUG] Horas obtenidas de usuario ' . $user_id . ': ' . print_r($horas_acumuladas, true));
-        return $horas_acumuladas ? (int)$horas_acumuladas : 0;
+    
+    private function obtener_horas_acumuladas($user_id) {
+        $horas = get_user_meta($user_id, 'wc_horas_acumuladas', true);
+        
+        // Convertir a array si es necesario (para compatibilidad)
+        if (!is_array($horas)) {
+            $horas = array();
+        }
+        
+        return $horas;
     }
 
     // Nueva función de validación
