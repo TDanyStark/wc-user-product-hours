@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: WC User Product Hours Daniel Amado
+ * Plugin Name: WC User Product Hours Daniel Amad
  * Plugin URI: https://daniel-amado.com/
  * Description: Guarda el ID del producto y las horas de la variación en metadatos de usuario después de cada compra.
  * Version: 1.0.0
