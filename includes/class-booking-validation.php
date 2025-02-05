@@ -9,6 +9,7 @@ class Booking_Validation
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
     add_action('woocommerce_cart_item_restored', [$this, 'wc_da_borrar_horas_al_deshacer'], 10, 2);
     add_action('before_delete_post', [$this, 'log_deleted_booking_data']);
+    add_action('wp_trash_post', [$this, 'log_deleted_booking_data']);
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
