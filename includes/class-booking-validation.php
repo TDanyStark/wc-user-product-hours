@@ -8,8 +8,6 @@ class Booking_Validation
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
     add_action('woocommerce_cart_item_restored', [$this, 'wc_da_borrar_horas_al_deshacer'], 10, 2);
-    add_action('wp_trash_post', [$this, 'log_deleted_booking_data']);
-    add_action('wp_deleted_post', [$this, 'log_deleted_booking_data']);
     add_action('before_delete_post', [$this, 'log_deleted_booking_data']);
   }
 
@@ -161,18 +159,28 @@ class Booking_Validation
 
   public function log_deleted_booking_data($post_id)
   {
-    wcuph_log('[DEBUG] Inicio de eliminación de booking. ID: ' . $post_id);
+    wcuph_log('[DEBUG] Inicio de eliminación de booking. ID por CRON: ' . $post_id);
     // Verificar que sea un booking de WooCommerce
     if ('wc_booking' !== get_post_type($post_id)) return;
 
     // Obtener los metadatos
     $customer_id = get_post_meta($post_id, '_booking_customer_id', true);
+    $product_id = get_post_meta($post_id, '_booking_product_id', true);
     $start = get_post_meta($post_id, '_booking_start', true);
     $end = get_post_meta($post_id, '_booking_end', true);
     wcuph_log('[DEBUG] Metadatos obtenidos: ' . print_r([$customer_id, $start, $end], true));
 
     $start_date = DateTime::createFromFormat('YmdHis', $start);
     $end_date = DateTime::createFromFormat('YmdHis', $end);
+
+    $relaciones = WCUPH_Config::get_relacion_productos();
+
+    if (array_key_exists($product_id, $relaciones)) {
+      $horas_acumuladas = wcuph_get_accumulated_hours($customer_id);
+      $producto_horas_id = $relaciones[$product_id];
+      $horas_acumuladas[$producto_horas_id] = $horas_acumuladas[$producto_horas_id] + $start_date->diff($end_date)->h;
+      update_user_meta($customer_id, 'wc_horas_acumuladas', $horas_acumuladas);
+    }
 
     if ($start_date && $end_date) {
       $interval = $start_date->diff($end_date);
