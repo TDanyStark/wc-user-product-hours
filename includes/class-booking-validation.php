@@ -94,7 +94,7 @@ class Booking_Validation
       $producto_horas_id = $relaciones[$product_id];
 
       // Obtener la duración desde los datos del carrito
-      $duracion = isset($cart_item['duracion_reserva']) ? (int)$cart_item['duracion_reserva'] : 0;
+      $duracion = isset($cart_item['booking']['_duration']) ? (int)$cart_item['booking']['_duration'] : 0;
       wcuph_log('[DEBUG] Duración del item eliminado: ' . $duracion);
 
       if ($duracion > 0 && $user_id) {
