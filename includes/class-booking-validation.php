@@ -8,6 +8,7 @@ class Booking_Validation
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
     add_action('woocommerce_cart_item_restored', [$this, 'wc_da_borrar_horas_al_deshacer'], 10, 2);
+    add_action('before_delete_post', [$this, 'log_deleted_booking_data']);
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
@@ -154,5 +155,32 @@ class Booking_Validation
         wcuph_log('[DEBUG] Nuevas horas disponibles: ' . $horas_acumuladas[$producto_horas_id]);
       }
     }
+  }
+
+  function log_deleted_booking_data($post_id)
+  {
+    // Verificar que sea un booking de WooCommerce
+    if ('wc_booking' !== get_post_type($post_id)) return;
+
+    // Obtener los metadatos
+    $customer_id = get_post_meta($post_id, '_booking_customer_id', true);
+    $start = get_post_meta($post_id, '_booking_start', true);
+    $end = get_post_meta($post_id, '_booking_end', true);
+
+    // Formatear fechas (si son timestamps)
+    $start_date = $start ? date('Y-m-d H:i:s', $start) : 'N/A';
+    $end_date = $end ? date('Y-m-d H:i:s', $end) : 'N/A';
+
+    // Crear mensaje para el log
+    $log_message = sprintf(
+      "Booking eliminado - ID: %s | Cliente: %s | Inicio: %s | Fin: %s",
+      $post_id,
+      $customer_id,
+      $start_date,
+      $end_date
+    );
+
+    // Escribir en el log de debug de WordPress
+    error_log($log_message);
   }
 }
