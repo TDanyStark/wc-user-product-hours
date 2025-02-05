@@ -73,21 +73,27 @@ class Booking_Validation
   }
 
   public function wc_da_restaurar_horas_al_eliminar($cart_item_key, $cart) {
+    wcuph_log('[DEBUG] Inicio de eliminación de item. Clave: ' . $cart_item_key);
     // Obtener el item eliminado
     $cart_item = $cart->removed_cart_contents[$cart_item_key];
     
     // Verificar si el producto está en la lista de relaciones
     $product_id = $cart_item['product_id'];
     $relaciones = WCUPH_Config::get_relacion_productos();
+
+    wcuph_log('[DEBUG] Producto eliminado: ' . $product_id);
+
     
     if (array_key_exists($product_id, $relaciones)) {
+        wcuph_log('[DEBUG] Producto con horas detectado: ' . $product_id);
         $user_id = get_current_user_id();
         $producto_horas_id = $relaciones[$product_id];
         
         // Obtener la duración del item eliminado
         $duracion = isset($_POST['wc_bookings_field_duration']) ? (int)$_POST['wc_bookings_field_duration'] : 0;
-        
+        wcuph_log('[DEBUG] Duración del item eliminado: ' . $duracion);
         if ($duracion > 0 && $user_id) {
+            wcuph_log('[DEBUG] Restaurando horas...');
             // Obtener horas acumuladas actuales
             $horas_acumuladas = wcuph_get_accumulated_hours($user_id);
             $horas_actuales = $horas_acumuladas[$producto_horas_id] ?? 0;
