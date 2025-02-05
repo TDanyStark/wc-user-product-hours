@@ -176,10 +176,13 @@ class Booking_Validation
     $relaciones = WCUPH_Config::get_relacion_productos();
 
     if (array_key_exists($product_id, $relaciones)) {
+      wcuph_log('[DEBUG] Producto con horas detectado: ' . $product_id);
       $horas_acumuladas = wcuph_get_accumulated_hours($customer_id);
+      wcuph_log('[DEBUG] Horas acumuladas antes: ' . $horas_acumuladas[$relaciones[$product_id]]);
       $producto_horas_id = $relaciones[$product_id];
       $horas_acumuladas[$producto_horas_id] = $horas_acumuladas[$producto_horas_id] + $start_date->diff($end_date)->h;
       update_user_meta($customer_id, 'wc_horas_acumuladas', $horas_acumuladas);
+      wcuph_log('[DEBUG] Horas actualizadas: ' . $horas_acumuladas[$producto_horas_id]);
     }
 
     if ($start_date && $end_date) {
