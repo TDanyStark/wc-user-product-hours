@@ -8,8 +8,6 @@ class Shortcodes_DA{
     }
 
     public function boton_vaciar_carrito() {
-        if ( ! is_cart() ) return; // Solo mostrar en la página del carrito
-        
         ob_start(); ?>
         <button id="vaciar-carrito" class="button">Vaciar Carrito</button>
         
