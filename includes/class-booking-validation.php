@@ -7,8 +7,7 @@ class Booking_Validation
   {
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
-  add_action('woocommerce_remove_reservations_from_cart', [$this, 'registrar_reservas_eliminadas']);
-
+    add_action('woocommerce_cart_item_restored', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
@@ -114,30 +113,5 @@ class Booking_Validation
         wcuph_log('[DEBUG] Nuevas horas disponibles: ' . $horas_acumuladas[$producto_horas_id]);
       }
     }
-  }
-
-  function registrar_reservas_eliminadas() {
-      // Obtener el carrito actual
-      wcuph_log('[DEBUG] Iniciando registro de reservas eliminadas');
-      $cart = WC()->cart;
-
-      wcuph_log('[DEBUG] Carrito actual: ' . print_r($cart->get_cart(), true));
-  
-      // Verificar si hay reservas en el carrito
-      if ($cart && $cart->get_cart_contents_count() > 0) {
-          wcuph_log('[DEBUG] Reservas detectadas en el carrito');
-          foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
-              // Verificar si el producto es una reserva
-              if (isset($cart_item['booking'])) {
-                  wcuph_log('[DEBUG] Reserva detectada: ' . print_r($cart_item, true));
-                  $booking_id = $cart_item['booking']['_booking_id'];
-                  $product_id = $cart_item['product_id'];
-                  $product_name = get_the_title($product_id);
-  
-                  // Registrar la reserva eliminada
-                  wcuph_log("Reserva eliminada por inactividad: Producto '$product_name' (ID: $product_id), Booking ID: $booking_id");
-              }
-          }
-      }
   }
 }
