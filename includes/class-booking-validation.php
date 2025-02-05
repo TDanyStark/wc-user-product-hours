@@ -159,7 +159,7 @@ class Booking_Validation
     }
   }
 
-  function log_deleted_booking_data($post_id)
+  public function log_deleted_booking_data($post_id)
   {
     wcuph_log('[DEBUG] Inicio de eliminación de booking. ID: ' . $post_id);
     // Verificar que sea un booking de WooCommerce
