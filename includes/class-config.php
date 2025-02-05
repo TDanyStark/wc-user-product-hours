@@ -4,11 +4,13 @@ if (!defined('ABSPATH')) exit;
 class WCUPH_Config {
     const RELACION_PRODUCTOS = [
         3722 => 3701, // Booking => Producto de horas
-        // Agrega más relaciones aquí
+        3771 => 3772, // Booking => Producto de horas
+        3791 => 3782, // Booking => Producto de horas
+        3801 => 3792, // Booking => Producto de horas
     ];
     
     const PRODUCTOS_CON_HORAS = [
-        3701, 3802, 3855, 3844
+        3701, 3772, 3782, 3792
     ];
     
     public static function get_relacion_productos() {
