@@ -7,6 +7,7 @@ class Booking_Validation
   {
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
+    add_action('woocommerce_before_cart_emptied', [$this, 'wc_da_restaurar_horas_al_vaciar_carrito']);
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
@@ -112,5 +113,12 @@ class Booking_Validation
         wcuph_log('[DEBUG] Nuevas horas disponibles: ' . $horas_acumuladas[$producto_horas_id]);
       }
     }
+  }
+
+  public function wc_da_restaurar_horas_al_vaciar_carrito($cart)
+  {
+    wcuph_log('[DEBUG] Inicio de vaciado de carrito');
+    wcuph_log('El carrito será vaciado. Contenido: ' . print_r($cart->get_cart(), true));
+    wcuph_log('[DEBUG] Horas restauradas al vaciar carrito');
   }
 }
