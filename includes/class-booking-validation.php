@@ -3,8 +3,6 @@ if (!defined('ABSPATH')) exit;
 
 class Booking_Validation
 {
-  private $relacion_productos = [3722 => 3701];
-
   public function __construct()
   {
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
@@ -14,8 +12,10 @@ class Booking_Validation
   {
     wcuph_log('[DEBUG] Inicio validación. Producto ID: ' . $product_id);
 
+    
+
     try {
-      if (array_key_exists($product_id, $this->relacion_productos)) {
+      if (array_key_exists($product_id, WCUPH_Config::get_relacion_productos())) {
         wcuph_log('[DEBUG] Producto reservable detectado: ' . $product_id);
 
         $duracion = isset($_POST['wc_bookings_field_duration']) ? (int)$_POST['wc_bookings_field_duration'] : 0;
@@ -37,7 +37,7 @@ class Booking_Validation
         }
 
         // Obtener horas específicas para este producto
-        $producto_horas_id = $this->relacion_productos[$product_id];
+        $producto_horas_id = WCUPH_Config::get_relacion_productos()[$product_id];
         $horas_acumuladas = wcuph_get_accumulated_hours($user_id);
         $horas_disponibles = isset($horas_acumuladas[$producto_horas_id]) ? $horas_acumuladas[$producto_horas_id] : 0;
 

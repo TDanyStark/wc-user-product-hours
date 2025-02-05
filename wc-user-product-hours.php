@@ -16,6 +16,7 @@
 defined('ABSPATH') || exit;
 
 // Cargar dependencias
+require_once plugin_dir_path(__FILE__) . 'includes/class-config.php';
 require_once plugin_dir_path(__FILE__) . 'includes/helpers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-product-hours-handler.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-booking-validation.php';
