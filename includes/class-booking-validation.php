@@ -7,7 +7,7 @@ class Booking_Validation
   {
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
-    add_action('woocommerce_cart_item_restored', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
+    add_action('woocommerce_cart_item_restored', [$this, 'wc_da_borrar_horas_al_deshacer'], 10, 2);
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
@@ -110,6 +110,47 @@ class Booking_Validation
         update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
 
         wcuph_log('[RESTAURAR HORAS] Horas restauradas: ' . $duracion);
+        wcuph_log('[DEBUG] Nuevas horas disponibles: ' . $horas_acumuladas[$producto_horas_id]);
+      }
+    }
+  }
+
+  public function wc_da_borrar_horas_al_deshacer($cart_item_key, $cart)
+  {
+    wcuph_log('[DEBUG] Inicio de deshacer eliminación de item. Clave: ' . $cart_item_key);
+
+    // Obtener el item restaurado
+    $cart_item = $cart->cart_contents[$cart_item_key];
+
+    wcuph_log('[DEBUG] Item restaurado: ' . print_r($cart_item, true));
+
+    // Verificar si el producto está en la lista de relaciones
+    $product_id = $cart_item['product_id'];
+    $relaciones = WCUPH_Config::get_relacion_productos();
+
+    wcuph_log('[DEBUG] Producto restaurado: ' . $product_id);
+
+    if (array_key_exists($product_id, $relaciones)) {
+      wcuph_log('[DEBUG] Producto con horas detectado: ' . $product_id);
+      $user_id = get_current_user_id();
+      $producto_horas_id = $relaciones[$product_id];
+
+      // Obtener la duración desde los datos del carrito
+      $duracion = isset($cart_item['booking']['_duration']) ? (int)$cart_item['booking']['_duration'] : 0;
+      wcuph_log('[DEBUG] Duración del item restaurado: ' . $duracion);
+
+      if ($duracion > 0 && $user_id) {
+        wcuph_log('[DEBUG] Borrando horas...');
+
+        // Obtener horas acumuladas actuales
+        $horas_acumuladas = wcuph_get_accumulated_hours($user_id);
+        $horas_actuales = $horas_acumuladas[$producto_horas_id] ?? 0;
+
+        // Borrar las horas
+        $horas_acumuladas[$producto_horas_id] = $horas_actuales - $duracion;
+        update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
+
+        wcuph_log('[BORRAR HORAS] Horas borradas: ' . $duracion);
         wcuph_log('[DEBUG] Nuevas horas disponibles: ' . $horas_acumuladas[$producto_horas_id]);
       }
     }
