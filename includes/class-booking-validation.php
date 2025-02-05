@@ -159,6 +159,7 @@ class Booking_Validation
 
   function log_deleted_booking_data($post_id)
   {
+    wcuph_log('[DEBUG] Inicio de eliminación de booking. ID: ' . $post_id);
     // Verificar que sea un booking de WooCommerce
     if ('wc_booking' !== get_post_type($post_id)) return;
 
@@ -166,6 +167,7 @@ class Booking_Validation
     $customer_id = get_post_meta($post_id, '_booking_customer_id', true);
     $start = get_post_meta($post_id, '_booking_start', true);
     $end = get_post_meta($post_id, '_booking_end', true);
+    wcuph_log('[DEBUG] Metadatos obtenidos: ' . print_r([$customer_id, $start, $end], true));
 
     $start_date = DateTime::createFromFormat('YmdHis', $start);
     $end_date = DateTime::createFromFormat('YmdHis', $end);
