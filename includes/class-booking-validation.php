@@ -8,9 +8,7 @@ class Booking_Validation
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
     add_action('woocommerce_cart_item_restored', [$this, 'wc_da_borrar_horas_al_deshacer'], 10, 2);
-    add_action('before_delete_post', [$this, 'log_deleted_booking_data']);
     add_action('wp_trash_post', [$this, 'log_deleted_booking_data']);
-    add_filter('woocommerce_bookings_remove_inactive_cart_time', 'change_incart_bookings_expiry_minutes_20170825');
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
