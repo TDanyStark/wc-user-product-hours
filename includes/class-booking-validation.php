@@ -185,8 +185,8 @@ class Booking_Validation
       "Booking eliminado - ID: %s | Cliente: %s | Inicio: %s | Fin: %s",
       $post_id,
       $customer_id,
-      $start_date,
-      $end_date
+      $start_date->format('Y-m-d H:i:s'),
+      $end_date->format('Y-m-d H:i:s')
     );
 
     // Escribir en el log de debug de WordPress
