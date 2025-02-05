@@ -195,15 +195,4 @@ class Booking_Validation
     wcuph_log($log_message);
   }
 
-  /**
-   * Will change the minutes it takes an In Cart booking to expire.
-   * This example reduces the number from 60 to 30.
-   * 
-   * @param  int $minutes 60 is the default passed
-   * @return int          The amount of minutes you'd like to have In Cart bookings expire on. 
-   */
-  function change_incart_bookings_expiry_minutes_20170825($minutes)
-  {
-    return 1;
-  }
 }
