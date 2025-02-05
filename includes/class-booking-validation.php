@@ -9,7 +9,7 @@ class Booking_Validation
     add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
   }
 
-  public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null)
+  public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
   {
     wcuph_log('[DEBUG] Inicio validación. Producto ID: ' . $product_id);
 
@@ -59,8 +59,9 @@ class Booking_Validation
         }
 
         wcuph_log('[VALIDACIÓN EXITOSA] Horas suficientes');
-        // Deducir horas después de validación exitosa
         // Guardar la duración en el carrito
+        $cart_item_data['duracion_reserva'] = $duracion;
+        // Deducir horas después de validación exitosa
         $horas_acumuladas[$producto_horas_id] = $horas_disponibles - $duracion;
         update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
       }
