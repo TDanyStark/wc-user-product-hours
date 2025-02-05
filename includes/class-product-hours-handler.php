@@ -7,7 +7,6 @@ class Product_Hours_Handler
   public function __construct()
   {
     add_action('woocommerce_order_status_completed', [$this, 'wc_da_guardar_datos_compra']);
-    // add_action('woocommerce_remove_cart_item', [$this, 'wc_da_restaurar_horas_al_eliminar'], 10, 2);
   }
   public function wc_da_guardar_datos_compra($order_id)
   {
@@ -109,28 +108,4 @@ class Product_Hours_Handler
 
     return $horas;
   }
-
-  // /**
-  //  * Restaurar horas al eliminar del carrito
-  //  */
-  // public function wc_da_restaurar_horas_al_eliminar($cart_item_key, $cart)
-  // {
-  //   $cart_item = $cart->removed_cart_contents[$cart_item_key];
-
-  //   if (isset($cart_item['horas_deducidas'])) {
-  //     $user_id = get_current_user_id();
-  //     $product_id = $cart_item['product_id'];
-
-  //     if ($user_id && array_key_exists($product_id, WCUPH_Config::get_relacion_productos())) {
-  //       $producto_horas_id = WCUPH_Config::get_relacion_productos()[$product_id];
-  //       $horas_acumuladas = wcuph_get_accumulated_hours($user_id);
-  //       $horas_actuales = $horas_acumuladas[$producto_horas_id] ?? 0;
-
-  //       $horas_acumuladas[$producto_horas_id] = $horas_actuales + $cart_item['horas_deducidas'];
-  //       update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
-
-  //       wcuph_log("Horas restauradas: " . $cart_item['horas_deducidas']);
-  //     }
-  //   }
-  // }
 }

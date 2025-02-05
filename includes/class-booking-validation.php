@@ -12,7 +12,7 @@ class Booking_Validation
   {
     wcuph_log('[DEBUG] Inicio validación. Producto ID: ' . $product_id);
 
-    
+
 
     try {
       if (array_key_exists($product_id, WCUPH_Config::get_relacion_productos())) {
@@ -60,6 +60,9 @@ class Booking_Validation
         }
 
         wcuph_log('[VALIDACIÓN EXITOSA] Horas suficientes');
+        // Deducir horas después de validación exitosa
+        $horas_acumuladas[$producto_horas_id] = $horas_disponibles - $duracion;
+        update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
       }
 
       return $passed;
