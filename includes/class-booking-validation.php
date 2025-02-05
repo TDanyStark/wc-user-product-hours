@@ -80,6 +80,8 @@ class Booking_Validation
     // Obtener el item eliminado
     $cart_item = $cart->removed_cart_contents[$cart_item_key];
 
+    wcuph_log('[DEBUG] Item eliminado: ' . print_r($cart_item, true));
+
     // Verificar si el producto está en la lista de relaciones
     $product_id = $cart_item['product_id'];
     $relaciones = WCUPH_Config::get_relacion_productos();
