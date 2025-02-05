@@ -118,7 +118,7 @@ class Booking_Validation
   public function wc_da_restaurar_horas_al_vaciar_carrito($cart)
   {
     wcuph_log('[DEBUG] Inicio de vaciado de carrito');
-    wcuph_log('El carrito será vaciado. Contenido: ' . print_r($cart->get_cart(), true));
+    wcuph_log('El carrito será vaciado. Contenido: ' . print_r($cart, true));
     wcuph_log('[DEBUG] Horas restauradas al vaciar carrito');
   }
 }
