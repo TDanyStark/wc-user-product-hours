@@ -10,6 +10,7 @@ class Booking_Validation
     add_action('woocommerce_cart_item_restored', [$this, 'wc_da_borrar_horas_al_deshacer'], 10, 2);
     add_action('before_delete_post', [$this, 'log_deleted_booking_data']);
     add_action('wp_trash_post', [$this, 'log_deleted_booking_data']);
+    add_filter('woocommerce_bookings_remove_inactive_cart_time', 'change_incart_bookings_expiry_minutes_20170825');
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
@@ -174,10 +175,10 @@ class Booking_Validation
     $end_date = DateTime::createFromFormat('YmdHis', $end);
 
     if ($start_date && $end_date) {
-        $interval = $start_date->diff($end_date);
-        wcuph_log('[DEBUG] Intervalo de fechas: ' . $interval->format('%H horas %i minutos'));
+      $interval = $start_date->diff($end_date);
+      wcuph_log('[DEBUG] Intervalo de fechas: ' . $interval->format('%H horas %i minutos'));
     } else {
-        wcuph_log('[ERROR] No se pudo obtener el intervalo de fechas');
+      wcuph_log('[ERROR] No se pudo obtener el intervalo de fechas');
     }
 
 
@@ -192,5 +193,17 @@ class Booking_Validation
 
     // Escribir en el log de debug de WordPress
     wcuph_log($log_message);
+  }
+
+  /**
+   * Will change the minutes it takes an In Cart booking to expire.
+   * This example reduces the number from 60 to 30.
+   * 
+   * @param  int $minutes 60 is the default passed
+   * @return int          The amount of minutes you'd like to have In Cart bookings expire on. 
+   */
+  function change_incart_bookings_expiry_minutes_20170825($minutes)
+  {
+    return 1;
   }
 }
