@@ -167,9 +167,16 @@ class Booking_Validation
     $start = get_post_meta($post_id, '_booking_start', true);
     $end = get_post_meta($post_id, '_booking_end', true);
 
-    // Formatear fechas (si son timestamps)
-    $start_date = $start ? date('Y-m-d H:i:s', $start) : 'N/A';
-    $end_date = $end ? date('Y-m-d H:i:s', $end) : 'N/A';
+    $start_date = DateTime::createFromFormat('YmdHis', $start);
+    $end_date = DateTime::createFromFormat('YmdHis', $end);
+
+    if ($start_date && $end_date) {
+        $interval = $start_date->diff($end_date);
+        wcuph_log('[DEBUG] Intervalo de fechas: ' . $interval->format('%H horas %i minutos'));
+    } else {
+        wcuph_log('[ERROR] No se pudo obtener el intervalo de fechas');
+    }
+
 
     // Crear mensaje para el log
     $log_message = sprintf(
@@ -181,6 +188,6 @@ class Booking_Validation
     );
 
     // Escribir en el log de debug de WordPress
-    error_log($log_message);
+    wcuph_log($log_message);
   }
 }
