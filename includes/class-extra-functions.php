@@ -19,6 +19,7 @@ class ExtraFunctions
 
     // Verificar si el pedido ya está completado
     if ($order->get_status() === 'completed') return;
+    if ($order->get_status() !== 'processing') return;
 
     // Verificar si el método de pago es Bold
     if ($order->get_payment_method() === 'bold_co') {
