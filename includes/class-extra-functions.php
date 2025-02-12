@@ -31,6 +31,21 @@ class ExtraFunctions
     if (!$order_id) return;
 
     $order = wc_get_order($order_id);
+    // solo si hay un pedido de la categoria agenda mostrar
+    $items = $order->get_items();
+    $agenda = false;
+
+    foreach ($items as $item) {
+      $product_id = $item->get_product_id();
+      $product = wc_get_product($product_id);
+      $categories = $product->get_category_ids();
+      if (in_array(46, $categories)) {
+        $agenda = true;
+        break;
+      }
+    }
+    if (!$agenda) return;
+
     $agendar_url = '/ensambles#agenda'; // Cambia esta URL por la correcta
 
     echo '<div style="margin: 20px 0; text-align: center;">';
