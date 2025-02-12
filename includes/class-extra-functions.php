@@ -18,7 +18,6 @@ class ExtraFunctions
     $order = wc_get_order($order_id);
 
     // Verificar si el pedido ya está completado
-    if ($order->get_status() === 'completed') return;
     if ($order->get_status() !== 'processing') return;
 
     // Verificar si el método de pago es Bold
