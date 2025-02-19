@@ -16,13 +16,11 @@ class ExtraFunctions
     if (!$order_id) return;
 
     $order = wc_get_order($order_id);
+    wcuph_log('Orden completada. ID de la orden: ' . $order->has_status( 'processing' ));
+    wcuph_log('Método de pago: ' . $order->get_payment_method());
 
-    // Verificar si el pedido ya está completado
-    if ($order->get_status() !== 'processing') return;
-
-    // Verificar si el método de pago es Bold
-    if ($order->get_payment_method() === 'bold_co') {
-      $order->update_status('completed');
+    if( $order->has_status( 'processing' ) && $order->get_payment_method() === 'bold_co' ) {
+      $order->update_status( 'completed' );
     }
   }
 
