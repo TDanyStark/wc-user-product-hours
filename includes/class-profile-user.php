@@ -13,7 +13,7 @@ class WCUPH_User_Hours_Display
   public function mostrar_horas_usuario($user)
   {
     echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin: 40px 0;">';
-    echo '<h2 style="margin-top: 30px;">Seccion de horas por usuario - plugin DanielAmado</h2>';
+    echo '<h2 style="margin-top: 30px;">Sección de horas por usuario - plugin DanielAmado</h2>';
     $horas_acumuladas = get_user_meta($user->ID, 'wc_horas_acumuladas', true);
 
     // Sección de Horas Acumuladas
@@ -23,10 +23,13 @@ class WCUPH_User_Hours_Display
       echo '<p>No hay horas registradas.</p>';
     } else {
       echo '<table class="form-table">
-              <tr>
+              <thead>
+                <tr>
                   <th>Producto</th>
                   <th>Horas Disponibles</th>
-              </tr>';
+                </tr>
+              </thead>
+              <tbody>';
 
       foreach ($horas_acumuladas as $product_id => $horas) {
         $producto = get_post($product_id);
@@ -38,16 +41,16 @@ class WCUPH_User_Hours_Display
               </tr>';
       }
 
-      echo '</table>';
+      echo '</tbody></table>';
     }
 
-    // 🔥 Nueva sección: Productos comprados de la categoría "horas-ensambles"
+    // Productos comprados de la categoría "horas-ensambles"
     echo '<h2 style="margin-top: 30px;">Productos Comprados - Categoría "Horas Ensambles"</h2>';
 
     $user_id = $user->ID;
     $pedidos = wc_get_orders([
       'customer_id' => $user_id,
-      'status'      => 'completed', // Solo pedidos completados
+      'status'      => 'completed',
       'limit'       => -1,
     ]);
 
@@ -76,7 +79,6 @@ class WCUPH_User_Hours_Display
           continue;
         }
 
-        // Obtener la categoría del producto
         $categorias = wp_get_post_terms($producto->get_id(), 'product_cat', ['fields' => 'names']);
         $categoria_nombre = !empty($categorias) ? implode(', ', $categorias) : 'Sin categoría';
 
@@ -92,7 +94,7 @@ class WCUPH_User_Hours_Display
 
     echo '</tbody></table>';
 
-    // Sección de Historial de Reservas
+    // Historial de Reservas
     $args = [
       'post_type'      => 'wc_booking',
       'posts_per_page' => -1,
@@ -105,7 +107,6 @@ class WCUPH_User_Hours_Display
       ]
     ];
     $reservas = get_posts($args);
-    wcuph_log('Reservas encontradas: ' . count($reservas) . ' para el usuario ' . $user->ID);
 
     echo '<h2 style="margin-top: 30px;">Historial de Reservas</h2>';
 
@@ -132,8 +133,7 @@ class WCUPH_User_Hours_Display
 
         $inicio_fecha = date('d-m-Y H:i', strtotime($inicio));
         $fin_fecha    = date('d-m-Y H:i', strtotime($fin));
-
-        $duracion = (strtotime($fin) - strtotime($inicio)) / 3600;
+        $duracion     = (strtotime($fin) - strtotime($inicio)) / 3600;
 
         if (!isset($horas_reservadas_por_producto[$producto])) {
           $horas_reservadas_por_producto[$producto] = 0;
@@ -149,16 +149,18 @@ class WCUPH_User_Hours_Display
               </tr>';
       }
 
-      echo '</tbody>
-          </table>';
+      echo '</tbody></table>';
 
-      // Mostrar total de horas reservadas por producto
+      // Total de horas reservadas por producto
       echo '<h3 style="margin-top: 30px;">Total de horas reservadas por producto</h3>';
       echo '<table class="form-table">
-              <tr>
+              <thead>
+                <tr>
                   <th>Producto</th>
                   <th>Horas Reservadas</th>
-              </tr>';
+                </tr>
+              </thead>
+              <tbody>';
 
       foreach ($horas_reservadas_por_producto as $producto => $total_horas) {
         echo '<tr>
@@ -167,12 +169,10 @@ class WCUPH_User_Hours_Display
               </tr>';
       }
 
-      echo '</table>';
+      echo '</tbody></table>';
     } else {
       echo '<p>No hay reservas registradas para este usuario.</p>';
     }
-
-    
     echo '</div>';
   }
 }
