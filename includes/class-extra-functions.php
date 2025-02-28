@@ -33,6 +33,6 @@ class ExtraFunctions
     echo '<div style="margin: 20px 0; text-align: center;">';
     echo '<a href="' . esc_url($agendar_url) . '" class="btn-agenda-thank">2. Agendar Ensamble</a>';
     echo '</div>';
-}
+  }
 
 }

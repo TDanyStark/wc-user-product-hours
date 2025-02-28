@@ -34,12 +34,17 @@ class WCUPH_User_Hours_Display
       foreach ($horas_acumuladas as $product_id => $horas) {
         $producto = get_post($product_id);
         $nombre_producto = $producto ? $producto->post_title : 'Producto Desconocido';
-
+    
         echo '<tr>
-                  <td>' . esc_html($nombre_producto) . '</td>
-                  <td>' . esc_html($horas) . '</td>
-              </tr>';
-      }
+                <td>' . esc_html($nombre_producto) . '</td>
+                <td>
+                    <input type="number" min="0" value="' . esc_attr($horas) . '" 
+                    data-product-id="' . esc_attr($product_id) . '" 
+                    data-user-id="' . esc_attr($user->ID) . '" 
+                    class="wc-horas-input">
+                </td>
+            </tr>';
+    }
 
       echo '</tbody></table>';
     }
