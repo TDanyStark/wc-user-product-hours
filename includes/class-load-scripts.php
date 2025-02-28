@@ -20,6 +20,11 @@ class WCUPH_Load_Scripts
         time(),  // Usar timestamp evita caché
         true
       );
+
+      wp_localize_script('wcuph-admin-script', 'wcuph_ajax', [
+        'ajaxurl' => admin_url('admin-ajax.php'),
+        'user_id' => get_current_user_id(),
+    ]);
   }
   
 }
