@@ -50,7 +50,7 @@ class WCUPH_User_Hours_Display
       ]
     ];
     $reservas = get_posts($args);
-    wcuph_log('Reservas encontradas: ' . count($reservas));
+    wcuph_log('Reservas encontradas: ' . count($reservas). ' para el usuario ' . $user->ID);
 
     echo '<h2>Historial de Reservas</h2>';
 
