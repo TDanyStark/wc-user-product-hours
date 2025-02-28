@@ -2,21 +2,26 @@ jQuery(document).ready(function($) {
   $('.wc-horas-input').on('change blur', function() {
       var productId = $(this).data('product-id');
       var newHours = $(this).val();
+      var userId = $(this).data('user-id');
 
       $.ajax({
-          url: ajaxurl, // WordPress AJAX URL
+          url: wcuph_ajax.ajaxurl, // URL correcta
           type: 'POST',
           data: {
               action: 'actualizar_horas_usuario',
               product_id: productId,
               new_hours: newHours,
-              user_id: $(this).data('user-id'),
+              user_id: userId,
           },
           success: function(response) {
-              console.log('Horas actualizadas:', response);
+              if (response.success) {
+                  console.log('Horas actualizadas:', response.data);
+              } else {
+                  console.log('Error en respuesta:', response.data);
+              }
           },
           error: function(error) {
-              console.log('Error actualizando horas:', error);
+              console.log('Error en AJAX:', error);
           }
       });
   });
