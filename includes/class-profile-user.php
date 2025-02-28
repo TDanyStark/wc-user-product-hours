@@ -122,71 +122,57 @@ class WCUPH_User_Hours_Display
     }
 
     // 🔥 Nueva sección: Productos comprados de la categoría "horas-ensambles"
+    
+    echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin-top: 20px;">';
     echo '<h2>Productos Comprados - Categoría "Horas Ensambles"</h2>';
 
-    $productos_comprados = $this->obtener_productos_comprados_por_categoria($user->ID, 'horas-ensambles');
+    $user_id = $user->ID;
+    $pedidos = wc_get_orders([
+      'customer_id' => $user_id,
+      'status'      => 'completed', // Solo pedidos completados
+      'limit'       => -1,
+    ]);
 
-    if ($productos_comprados) {
-      echo '<table class="widefat fixed">
-              <thead>
-                  <tr>
-                      <th>Producto</th>
-                      <th>Cantidad Comprada</th>
-                      <th>Total Gastado</th>
-                  </tr>
-              </thead>
-              <tbody>';
-
-      foreach ($productos_comprados as $producto) {
-        echo '<tr>
-                  <td>' . esc_html($producto['nombre']) . '</td>
-                  <td>' . esc_html($producto['cantidad']) . '</td>
-                  <td>$' . esc_html(number_format($producto['total'], 2)) . '</td>
-              </tr>';
-      }
-
-      echo '</tbody>
-          </table>';
-    } else {
-      echo '<p>No ha comprado productos de la categoría "horas-ensambles".</p>';
+    if (empty($pedidos)) {
+      echo '<p>Este usuario no ha comprado productos aún.</p>';
+      echo '</div>';
+      return;
     }
 
-    echo '</div>'; // Cierre del div principal
-  }
+    echo '<table class="widefat fixed" style="margin-top:10px;">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Cantidad</th>
+                <th>Pedido</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>';
 
-  private function obtener_productos_comprados_por_categoria($user_id, $category_slug)
-  {
-    global $wpdb;
+    foreach ($pedidos as $pedido) {
+      foreach ($pedido->get_items() as $item) {
+        $producto = $item->get_product();
+        if (!$producto) {
+          continue;
+        }
 
-    // Consulta para obtener productos comprados de la categoría específica
-    $query = $wpdb->prepare("
-    SELECT order_items.order_item_name AS nombre_producto,
-            SUM(order_item_meta_qty.meta_value) AS cantidad_comprada,
-            SUM(order_item_meta_total.meta_value) AS total_gastado
-      FROM {$wpdb->prefix}woocommerce_order_items AS order_items
-      INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_qty
-          ON order_items.order_item_id = order_item_meta_qty.order_item_id
-          AND order_item_meta_qty.meta_key = '_qty'
-      INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_total
-          ON order_items.order_item_id = order_item_meta_total.order_item_id
-          AND order_item_meta_total.meta_key = '_line_total'
-      INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_product_id
-          ON order_items.order_item_id = order_item_meta_product_id.order_item_id
-          AND order_item_meta_product_id.meta_key = '_product_id'
-      INNER JOIN {$wpdb->prefix}term_relationships AS tr
-          ON order_item_meta_product_id.meta_value = tr.object_id
-      WHERE tr.term_taxonomy_id = %d
-        AND order_items.order_id IN (
-            SELECT posts.ID FROM {$wpdb->prefix}posts AS posts
-            WHERE posts.post_type = 'shop_order'
-            AND posts.post_status IN ('wc-completed', 'wc-processing')
-            AND posts.post_author = %d
-        )
-      GROUP BY order_items.order_item_name
-    ", 46, $user_id);
+        // Obtener la categoría del producto
+        $categorias = wp_get_post_terms($producto->get_id(), 'product_cat', ['fields' => 'names']);
+        $categoria_nombre = !empty($categorias) ? implode(', ', $categorias) : 'Sin categoría';
 
-    $resultados = $wpdb->get_results($query, ARRAY_A);
+        echo '<tr>
+                <td>' . esc_html($producto->get_name()) . '</td>
+                <td>' . esc_html($categoria_nombre) . '</td>
+                <td>' . esc_html($item->get_quantity()) . '</td>
+                <td><a href="' . esc_url(get_edit_post_link($pedido->get_id())) . '">#' . $pedido->get_id() . '</a></td>
+                <td>' . esc_html($pedido->get_date_created()->date('Y-m-d')) . '</td>
+            </tr>';
+      }
+    }
 
-    return $resultados ?: [];
+    echo '</tbody></table>';
+    echo '</div>';
   }
 }
