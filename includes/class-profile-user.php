@@ -12,7 +12,7 @@ class WCUPH_User_Hours_Display
 
   public function mostrar_horas_usuario($user)
   {
-    echo '<div class="wcuph-user-hours">';
+    echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin: 20px; 0">';
     echo '<h2>Seccion de horas por usuario - plugin DanielAmado</h2>';
     $horas_acumuladas = get_user_meta($user->ID, 'wc_horas_acumuladas', true);
 
@@ -123,7 +123,6 @@ class WCUPH_User_Hours_Display
 
     // 🔥 Nueva sección: Productos comprados de la categoría "horas-ensambles"
     
-    echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin-top: 20px;">';
     echo '<h2>Productos Comprados - Categoría "Horas Ensambles"</h2>';
 
     $user_id = $user->ID;
