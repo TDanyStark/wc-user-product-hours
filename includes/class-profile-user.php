@@ -22,7 +22,7 @@ class WCUPH_User_Hours_Display
     if (!$horas_acumuladas || !is_array($horas_acumuladas)) {
       echo '<p>No hay horas registradas.</p>';
     } else {
-      echo '<table class="form-table">
+      echo '<table class="widefat fixed">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -153,7 +153,7 @@ class WCUPH_User_Hours_Display
 
       // Total de horas reservadas por producto
       echo '<h3 style="margin-top: 30px;">Total de horas reservadas por producto</h3>';
-      echo '<table class="form-table">
+      echo '<table class="widefat fixed">
               <thead>
                 <tr>
                   <th>Producto</th>
