@@ -51,7 +51,6 @@ class WCUPH_User_Hours_Display
       ]
     ];
     $reservas = get_posts($args);
-    wcuph_log('Reservas encontradas: ' . count($reservas). ' para el usuario ' . $user->ID);
 
     echo '<h2>Historial de Reservas</h2>';
 
@@ -68,7 +67,7 @@ class WCUPH_User_Hours_Display
               </thead>
               <tbody>';
 
-      $total_horas_reservadas = 0;
+      $horas_reservadas_por_producto = [];
 
       foreach ($reservas as $reserva) {
         $producto_id = get_post_meta($reserva->ID, '_booking_product_id', true);
@@ -82,7 +81,12 @@ class WCUPH_User_Hours_Display
 
         // Calcular duración en horas
         $duracion = (strtotime($fin) - strtotime($inicio)) / 3600;
-        $total_horas_reservadas += $duracion;
+
+        // Acumular horas por producto
+        if (!isset($horas_reservadas_por_producto[$producto])) {
+          $horas_reservadas_por_producto[$producto] = 0;
+        }
+        $horas_reservadas_por_producto[$producto] += $duracion;
 
         echo '<tr>
                   <td>#' . $reserva->ID . '</td>
@@ -96,8 +100,22 @@ class WCUPH_User_Hours_Display
       echo '</tbody>
           </table>';
 
-      // Mostrar total de horas reservadas
-      echo '<p><strong>Total de horas reservadas: ' . esc_html($total_horas_reservadas) . ' horas</strong></p>';
+      // Mostrar total de horas reservadas por producto
+      echo '<h3>Total de horas reservadas por producto</h3>';
+      echo '<table class="form-table">
+              <tr>
+                  <th>Producto</th>
+                  <th>Horas Reservadas</th>
+              </tr>';
+
+      foreach ($horas_reservadas_por_producto as $producto => $total_horas) {
+        echo '<tr>
+                  <td>' . esc_html($producto) . '</td>
+                  <td>' . esc_html($total_horas) . ' horas</td>
+              </tr>';
+      }
+
+      echo '</table>';
     } else {
       echo '<p>No hay reservas registradas para este usuario.</p>';
     }
