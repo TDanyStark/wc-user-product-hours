@@ -22,6 +22,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-product-hours-handler.p
 require_once plugin_dir_path(__FILE__) . 'includes/class-booking-validation.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-shortcodes.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-extra-functions.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-profile-user.php';
 
 class WC_User_Product_Hours
 {
@@ -31,6 +32,7 @@ class WC_User_Product_Hours
         new Booking_Validation();
         new Shortcodes_DA();
         new ExtraFunctions();
+        new WCUPH_User_Hours_Display();
     }
 }
 
