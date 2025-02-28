@@ -42,6 +42,7 @@ class WCUPH_User_Hours_Display
     $args = [
       'post_type'      => 'wc_booking',
       'posts_per_page' => -1,
+      'post_status'    => ['any'], // Incluye cualquier estado
       'meta_query'     => [
         [
           'key'   => '_booking_customer_id',
