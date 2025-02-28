@@ -45,7 +45,7 @@ class WCUPH_User_Hours_Display
     }
 
     // Productos comprados de la categoría "horas-ensambles"
-    echo '<h2 style="margin-top: 30px;">Productos Comprados - Categoría "Horas Ensambles"</h2>';
+    echo '<h2 style="margin-top: 30px;">Productos Comprados</h2>';
 
     $user_id = $user->ID;
     $pedidos = wc_get_orders([
