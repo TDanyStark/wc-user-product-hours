@@ -13,7 +13,7 @@ class WCUPH_User_Hours_Display
   public function mostrar_horas_usuario($user)
   {
     echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin: 40px 0;">';
-    echo '<h2 style="margin-top: 30px;">Sección de horas por usuario - plugin DanielAmado</h2>';
+    echo '<h2 style="margin-top: 30px; font-size: 1.6rem;">Sección de horas por usuario - plugin Daniel Amado</h2>';
     $horas_acumuladas = get_user_meta($user->ID, 'wc_horas_acumuladas', true);
 
     // Sección de Horas Acumuladas
