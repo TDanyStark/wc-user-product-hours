@@ -13,7 +13,7 @@ class WCUPH_User_Hours_Display
   public function mostrar_horas_usuario($user)
   {
     echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin: 40px 0;">';
-    echo '<h2>Seccion de horas por usuario - plugin DanielAmado</h2>';
+    echo '<h2 style="margin-top: 30px;">Seccion de horas por usuario - plugin DanielAmado</h2>';
     $horas_acumuladas = get_user_meta($user->ID, 'wc_horas_acumuladas', true);
 
     // Sección de Horas Acumuladas
@@ -42,7 +42,7 @@ class WCUPH_User_Hours_Display
     }
 
     // 🔥 Nueva sección: Productos comprados de la categoría "horas-ensambles"
-    echo '<h2>Productos Comprados - Categoría "Horas Ensambles"</h2>';
+    echo '<h2 style="margin-top: 30px;">Productos Comprados - Categoría "Horas Ensambles"</h2>';
 
     $user_id = $user->ID;
     $pedidos = wc_get_orders([
@@ -107,7 +107,7 @@ class WCUPH_User_Hours_Display
     $reservas = get_posts($args);
     wcuph_log('Reservas encontradas: ' . count($reservas) . ' para el usuario ' . $user->ID);
 
-    echo '<h2>Historial de Reservas</h2>';
+    echo '<h2 style="margin-top: 30px;">Historial de Reservas</h2>';
 
     if ($reservas) {
       echo '<table class="widefat fixed">
@@ -153,7 +153,7 @@ class WCUPH_User_Hours_Display
           </table>';
 
       // Mostrar total de horas reservadas por producto
-      echo '<h3>Total de horas reservadas por producto</h3>';
+      echo '<h3 style="margin-top: 30px;">Total de horas reservadas por producto</h3>';
       echo '<table class="form-table">
               <tr>
                   <th>Producto</th>
