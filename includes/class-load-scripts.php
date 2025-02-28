@@ -15,7 +15,7 @@ class WCUPH_Load_Scripts
   
       wp_enqueue_script(
         'wcuph-admin-script',
-        plugins_url('assets/admin-script.js', __FILE__), 
+        plugins_url('assets/admin-script.js', dirname(__FILE__)),  
         ['jquery'], 
         time(),  // Usar timestamp evita caché
         true
