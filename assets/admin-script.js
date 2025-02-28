@@ -1,9 +1,5 @@
 jQuery(document).ready(function($) {
-  console.log('WCUPH script cargado correctamente.');
-
-  $('.wc-horas-input').on('change blur', function() {
-      console.log('Evento change/blur detectado en input.');
-
+  $('.wc-horas-input').on('change', function() {
       var productId = $(this).data('product-id');
       var newHours = $(this).val();
       var userId = $(this).data('user-id');
