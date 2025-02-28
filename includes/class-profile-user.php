@@ -12,7 +12,7 @@ class WCUPH_User_Hours_Display
 
   public function mostrar_horas_usuario($user)
   {
-    echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin: 20px; 0">';
+    echo '<div style="border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; padding: 15px; margin: 40px 0;">';
     echo '<h2>Seccion de horas por usuario - plugin DanielAmado</h2>';
     $horas_acumuladas = get_user_meta($user->ID, 'wc_horas_acumuladas', true);
 
@@ -40,6 +40,57 @@ class WCUPH_User_Hours_Display
 
       echo '</table>';
     }
+
+    // 🔥 Nueva sección: Productos comprados de la categoría "horas-ensambles"
+    echo '<h2>Productos Comprados - Categoría "Horas Ensambles"</h2>';
+
+    $user_id = $user->ID;
+    $pedidos = wc_get_orders([
+      'customer_id' => $user_id,
+      'status'      => 'completed', // Solo pedidos completados
+      'limit'       => -1,
+    ]);
+
+    if (empty($pedidos)) {
+      echo '<p>Este usuario no ha comprado productos aún.</p>';
+      echo '</div>';
+      return;
+    }
+
+    echo '<table class="widefat fixed" style="margin-top:10px;">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Cantidad</th>
+                <th>Pedido</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>';
+
+    foreach ($pedidos as $pedido) {
+      foreach ($pedido->get_items() as $item) {
+        $producto = $item->get_product();
+        if (!$producto) {
+          continue;
+        }
+
+        // Obtener la categoría del producto
+        $categorias = wp_get_post_terms($producto->get_id(), 'product_cat', ['fields' => 'names']);
+        $categoria_nombre = !empty($categorias) ? implode(', ', $categorias) : 'Sin categoría';
+
+        echo '<tr>
+                <td>' . esc_html($producto->get_name()) . '</td>
+                <td>' . esc_html($categoria_nombre) . '</td>
+                <td>' . esc_html($item->get_quantity()) . '</td>
+                <td><a href="' . esc_url(get_edit_post_link($pedido->get_id())) . '">#' . $pedido->get_id() . '</a></td>
+                <td>' . esc_html($pedido->get_date_created()->date('Y-m-d')) . '</td>
+            </tr>';
+      }
+    }
+
+    echo '</tbody></table>';
 
     // Sección de Historial de Reservas
     $args = [
@@ -121,57 +172,7 @@ class WCUPH_User_Hours_Display
       echo '<p>No hay reservas registradas para este usuario.</p>';
     }
 
-    // 🔥 Nueva sección: Productos comprados de la categoría "horas-ensambles"
     
-    echo '<h2>Productos Comprados - Categoría "Horas Ensambles"</h2>';
-
-    $user_id = $user->ID;
-    $pedidos = wc_get_orders([
-      'customer_id' => $user_id,
-      'status'      => 'completed', // Solo pedidos completados
-      'limit'       => -1,
-    ]);
-
-    if (empty($pedidos)) {
-      echo '<p>Este usuario no ha comprado productos aún.</p>';
-      echo '</div>';
-      return;
-    }
-
-    echo '<table class="widefat fixed" style="margin-top:10px;">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Cantidad</th>
-                <th>Pedido</th>
-                <th>Fecha</th>
-            </tr>
-        </thead>
-        <tbody>';
-
-    foreach ($pedidos as $pedido) {
-      foreach ($pedido->get_items() as $item) {
-        $producto = $item->get_product();
-        if (!$producto) {
-          continue;
-        }
-
-        // Obtener la categoría del producto
-        $categorias = wp_get_post_terms($producto->get_id(), 'product_cat', ['fields' => 'names']);
-        $categoria_nombre = !empty($categorias) ? implode(', ', $categorias) : 'Sin categoría';
-
-        echo '<tr>
-                <td>' . esc_html($producto->get_name()) . '</td>
-                <td>' . esc_html($categoria_nombre) . '</td>
-                <td>' . esc_html($item->get_quantity()) . '</td>
-                <td><a href="' . esc_url(get_edit_post_link($pedido->get_id())) . '">#' . $pedido->get_id() . '</a></td>
-                <td>' . esc_html($pedido->get_date_created()->date('Y-m-d')) . '</td>
-            </tr>';
-      }
-    }
-
-    echo '</tbody></table>';
     echo '</div>';
   }
 }
