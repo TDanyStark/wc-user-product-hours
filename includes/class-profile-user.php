@@ -160,35 +160,30 @@ class WCUPH_User_Hours_Display
 
     // Consulta para obtener productos comprados de la categoría específica
     $query = $wpdb->prepare("
-        SELECT order_items.order_item_name AS nombre_producto,
-               SUM(order_item_meta_qty.meta_value) AS cantidad_comprada,
-               SUM(order_item_meta_total.meta_value) AS total_gastado
-        FROM {$wpdb->prefix}woocommerce_order_items AS order_items
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_qty
-            ON order_items.order_item_id = order_item_meta_qty.order_item_id
-            AND order_item_meta_qty.meta_key = '_qty'
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_total
-            ON order_items.order_item_id = order_item_meta_total.order_item_id
-            AND order_item_meta_total.meta_key = '_line_total'
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_product_id
-            ON order_items.order_item_id = order_item_meta_product_id.order_item_id
-            AND order_item_meta_product_id.meta_key = '_product_id'
-        INNER JOIN {$wpdb->prefix}term_relationships AS tr
-            ON order_item_meta_product_id.meta_value = tr.object_id
-        INNER JOIN {$wpdb->prefix}term_taxonomy AS tt
-            ON tr.term_taxonomy_id = tt.term_taxonomy_id
-        INNER JOIN {$wpdb->prefix}terms AS t
-            ON tt.term_id = t.term_id
-        WHERE tt.taxonomy = 'product_cat'
-          AND t.slug = %s
-          AND order_items.order_id IN (
-              SELECT posts.ID FROM {$wpdb->prefix}posts AS posts
-              WHERE posts.post_type = 'shop_order'
-              AND posts.post_status IN ('wc-completed', 'wc-processing')
-              AND posts.post_author = %d
-          )
-        GROUP BY order_items.order_item_name
-    ", $category_slug, $user_id);
+    SELECT order_items.order_item_name AS nombre_producto,
+            SUM(order_item_meta_qty.meta_value) AS cantidad_comprada,
+            SUM(order_item_meta_total.meta_value) AS total_gastado
+      FROM {$wpdb->prefix}woocommerce_order_items AS order_items
+      INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_qty
+          ON order_items.order_item_id = order_item_meta_qty.order_item_id
+          AND order_item_meta_qty.meta_key = '_qty'
+      INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_total
+          ON order_items.order_item_id = order_item_meta_total.order_item_id
+          AND order_item_meta_total.meta_key = '_line_total'
+      INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS order_item_meta_product_id
+          ON order_items.order_item_id = order_item_meta_product_id.order_item_id
+          AND order_item_meta_product_id.meta_key = '_product_id'
+      INNER JOIN {$wpdb->prefix}term_relationships AS tr
+          ON order_item_meta_product_id.meta_value = tr.object_id
+      WHERE tr.term_taxonomy_id = %d
+        AND order_items.order_id IN (
+            SELECT posts.ID FROM {$wpdb->prefix}posts AS posts
+            WHERE posts.post_type = 'shop_order'
+            AND posts.post_status IN ('wc-completed', 'wc-processing')
+            AND posts.post_author = %d
+        )
+      GROUP BY order_items.order_item_name
+    ", 46, $user_id);
 
     $resultados = $wpdb->get_results($query, ARRAY_A);
 
