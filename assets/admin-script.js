@@ -1,8 +1,14 @@
 jQuery(document).ready(function($) {
+  console.log('WCUPH script cargado correctamente.');
+
   $('.wc-horas-input').on('change blur', function() {
+      console.log('Evento change/blur detectado en input.');
+
       var productId = $(this).data('product-id');
       var newHours = $(this).val();
       var userId = $(this).data('user-id');
+
+      console.log('Enviando AJAX con:', { productId, newHours, userId });
 
       $.ajax({
           url: wcuph_ajax.ajaxurl, // URL correcta
