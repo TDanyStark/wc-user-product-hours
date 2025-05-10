@@ -9,10 +9,11 @@ class WCUPH_Config {
         3771 => 3772, // Booking => Producto de horas
         3791 => 3782, // Booking => Producto de horas
         3801 => 3792, // Booking => Producto de horas
+        4621 => 4611, // Booking => Producto de horas
     ];
     
     const PRODUCTOS_CON_HORAS = [
-        3701, 3772, 3782, 3792
+        3701, 3772, 3782, 3792, 4611, // Productos de horas
     ];
     
     public static function get_relacion_productos() {
