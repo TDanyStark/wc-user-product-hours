@@ -5,7 +5,7 @@ class Booking_Validation
 {  public function __construct()
   {
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
-    add_action('before_delete_post', [$this, 'wc_da_deleted_booking_data']);
+    add_action('woocommerce_checkout_process', [$this, 'wc_da_verificar_horas_antes_pago']);
     add_action('woocommerce_order_status_completed', [$this, 'wc_da_descontar_horas_al_completar_orden'], 10, 1);
   }
 
@@ -75,9 +75,79 @@ class Booking_Validation
       wcuph_log('[EXCEPCIÓN] Error: ' . $e->getMessage());
       return false;
     }
-  }
-  // Las funciones wc_da_restaurar_horas_al_eliminar y wc_da_borrar_horas_al_deshacer fueron eliminadas
+  }  // Las funciones wc_da_restaurar_horas_al_eliminar y wc_da_borrar_horas_al_deshacer fueron eliminadas
   // ya que ahora las horas se descuentan al confirmar la reserva
+  
+  public function wc_da_verificar_horas_antes_pago()
+  {
+    $user_id = get_current_user_id();
+    $user_log = $user_id ? $user_id : 'SINUSER';
+    
+    if ($user_id === 0) {
+      // No es necesario verificar si no hay usuario (ya se validó al añadir al carrito)
+      return;
+    }
+    
+    wcuph_log('[DEBUG] Verificando horas disponibles antes del pago - Usuario: ' . $user_log);
+    
+    $relaciones = WCUPH_Config::get_relacion_productos();
+    $horas_acumuladas = wcuph_get_accumulated_hours($user_id);
+    $horas_necesarias = [];
+    
+    // Recorrer todos los items del carrito
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+      $product_id = $cart_item['product_id'];
+      
+      // Verificar si es un producto de reserva que requiere horas
+      if (array_key_exists($product_id, $relaciones)) {
+        wcuph_log('[DEBUG] Producto reservable en carrito: ' . $product_id . ' - '. $user_log);
+        $producto_horas_id = $relaciones[$product_id];
+        
+        // Obtener la duración desde los datos del carrito
+        $duracion = isset($cart_item['duracion_reserva']) ? $cart_item['duracion_reserva'] : 0;
+        
+        // Si no está en los datos del carrito, intentar obtenerla de los datos de WC Bookings
+        if ($duracion <= 0 && isset($cart_item['booking'])) {
+          $duracion = isset($cart_item['booking']['_duration']) ? (int)$cart_item['booking']['_duration'] : 0;
+        }
+        
+        wcuph_log('[DEBUG] Duración detectada en carrito: ' . $duracion . ' - '. $user_log);
+        
+        if ($duracion > 0) {
+          if (!isset($horas_necesarias[$producto_horas_id])) {
+            $horas_necesarias[$producto_horas_id] = 0;
+          }
+          
+          $horas_necesarias[$producto_horas_id] += $duracion;
+        }
+      }
+    }
+    
+    // Verificar si hay suficientes horas disponibles para cada producto
+    foreach ($horas_necesarias as $producto_id => $horas) {
+      $horas_disponibles = isset($horas_acumuladas[$producto_id]) ? $horas_acumuladas[$producto_id] : 0;
+      
+      wcuph_log('[DEBUG] Verificando producto: ' . $producto_id . ' - Horas necesarias: ' . $horas . ' - Horas disponibles: ' . $horas_disponibles . ' - '. $user_log);
+      
+      if ($horas_disponibles < $horas) {
+        wcuph_log('[VERIFICACIÓN FALLIDA] Horas insuficientes para el producto: ' . $producto_id . ' - '. $user_log);
+        
+        $producto_horas = wc_get_product($producto_id);
+        $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';
+        
+        wc_add_notice(sprintf(
+          __('No tienes suficientes horas para completar la compra. Necesitas %1$s horas para las reservas en tu carrito, pero solo dispones de %2$s. <a href="%3$s">Compra más horas</a>', 'WC-User-Product-Hours'),
+          $horas,
+          $horas_disponibles,
+          $enlace_compra
+        ), 'error');
+        
+        return;
+      }
+    }
+    
+    wcuph_log('[VERIFICACIÓN EXITOSA] Horas suficientes para todas las reservas en el carrito. - ' . $user_log);
+  }
   public function wc_da_descontar_horas_al_completar_orden($order_id)
   {
     $order = wc_get_order($order_id);
@@ -142,40 +212,6 @@ class Booking_Validation
       
       update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
       wcuph_log('[DEBUG] Horas actualizadas para el usuario: ' . $user_id. ' - '. $user_log);
-    }
-  }
-
-  public function wc_da_deleted_booking_data($post_id)
-  {
-    wcuph_log('[DEBUG] Inicio de eliminación de booking. ID por CRON: ' . $post_id);
-    // Verificar que sea un booking de WooCommerce
-    if ('wc_booking' !== get_post_type($post_id)) return;
-
-    // Obtener los metadatos
-    $customer_id = get_post_meta($post_id, '_booking_customer_id', true);
-    $user_log = $customer_id ? $customer_id : 'SINUSER';
-    $product_id = get_post_meta($post_id, '_booking_product_id', true);
-    $start = get_post_meta($post_id, '_booking_start', true);
-    $end = get_post_meta($post_id, '_booking_end', true);
-    wcuph_log('[DEBUG] Metadatos obtenidos: ' . print_r([$customer_id, $product_id, $start, $end], true). ' - '. $user_log);
-
-    $start_date = DateTime::createFromFormat('YmdHis', $start);
-    $end_date = DateTime::createFromFormat('YmdHis', $end);
-
-    $relaciones = WCUPH_Config::get_relacion_productos();
-
-    if (array_key_exists($product_id, $relaciones)) {
-      wcuph_log('[DEBUG] Producto con horas detectado: ' . $product_id. ' - '. $user_log);
-      $horas_acumuladas = wcuph_get_accumulated_hours($customer_id);
-      $producto_horas_id = $relaciones[$product_id];
-      
-      if (isset($horas_acumuladas[$producto_horas_id])) {
-        wcuph_log('[DEBUG] Horas acumuladas antes: ' . $horas_acumuladas[$producto_horas_id]. ' - '. $user_log);
-        $duracion = $start_date->diff($end_date)->h;
-        $horas_acumuladas[$producto_horas_id] = $horas_acumuladas[$producto_horas_id] + $duracion;
-        update_user_meta($customer_id, 'wc_horas_acumuladas', $horas_acumuladas);
-        wcuph_log('[DEBUG] Horas restauradas: ' . $duracion . ', Nuevas horas: ' . $horas_acumuladas[$producto_horas_id]. ' - '. $user_log);
-      }
     }
   }
 }
