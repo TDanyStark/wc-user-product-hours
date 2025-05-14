@@ -134,12 +134,14 @@ class Booking_Validation
         
         $producto_horas = wc_get_product($producto_id);
         $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';
+        $enlace_carrito = wc_get_cart_url();
         
         wc_add_notice(sprintf(
-          __('No tienes suficientes horas para completar la compra. Necesitas %1$s horas para las reservas en tu carrito, pero solo dispones de %2$s. <a href="%3$s">Compra más horas</a>', 'WC-User-Product-Hours'),
+          __('No tienes suficientes horas para completar la compra. Necesitas %1$s horas para las reservas en tu carrito, pero solo dispones de %2$s. <a href="%3$s" class="button">Compra más horas</a> o <a href="%4$s" class="button">Ve a tu carrito</a> y elimina las reservas que no necesites.', 'WC-User-Product-Hours'),
           $horas,
           $horas_disponibles,
-          $enlace_compra
+          $enlace_compra,
+          $enlace_carrito
         ), 'error');
         
         return;
