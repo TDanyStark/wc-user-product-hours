@@ -11,9 +11,6 @@ class Booking_Validation
     
     // Añadimos hooks para asegurar que la duración de la reserva se guarde en el pedido
     add_filter('woocommerce_checkout_create_order_line_item', [$this, 'wc_da_guardar_duracion_en_item_orden'], 10, 4);
-    
-    // Hook para debugging (opcional - puedes eliminar después)
-    add_action('woocommerce_checkout_order_processed', [$this, 'wc_da_debug_orden_procesada'], 10, 3);
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
@@ -188,13 +185,8 @@ class Booking_Validation
         $item_data = $item->get_meta_data();
         $duracion = 0;
           // Buscar la duración en los metadatos del item
-        wcuph_log('[DEBUG] Analizando metadatos del item para el producto: ' . $product_id . ' - '. $user_log);
-        
-        // Imprimir todos los metadatos para debugging
         foreach ($item_data as $meta) {
           $data = $meta->get_data();
-          wcuph_log('[DEBUG] Metadata encontrado - Key: ' . $data['key'] . ' - Value: ' . (is_array($data['value']) ? json_encode($data['value']) : $data['value']) . ' - '. $user_log);
-          
           // Buscar en varios posibles campos donde pueda estar la duración
           if ($data['key'] === '_booking_duration' || $data['key'] === 'duracion_reserva' || $data['key'] === '_duration') {
             $duracion = (int)$data['value'];
@@ -225,15 +217,6 @@ class Booking_Validation
                 wcuph_log('[DEBUG] Duración obtenida de objeto WC_Booking: ' . $duracion . ' - '. $user_log);
               }
             }
-          }
-        }
-        
-        // Si seguimos sin duración, intentar una última opción - _wc_booking_duration si existe
-        if ($duracion <= 0) {
-          $booking_data = $item->get_meta('_wc_booking_data');
-          if (is_array($booking_data) && isset($booking_data['duration'])) {
-            $duracion = (int)$booking_data['duration'];
-            wcuph_log('[DEBUG] Duración obtenida de _wc_booking_data: ' . $duracion . ' - '. $user_log);
           }
         }
         
@@ -301,36 +284,4 @@ class Booking_Validation
     return $item;
   }
 
-  /**
-   * Función para debug de la orden procesada
-   */
-  public function wc_da_debug_orden_procesada($order_id, $posted_data, $order) 
-  {
-    $user_id = get_current_user_id();
-    $user_log = $user_id ? $user_id : 'SINUSER';
-    
-    wcuph_log('[DEBUG] Orden procesada: ' . $order_id . ' - Usuario: ' . $user_log);
-    
-    // Debug para verificar los items de la orden
-    foreach ($order->get_items() as $item_id => $item) {
-      $product_id = $item->get_product_id();
-      
-      wcuph_log('[DEBUG] Item en orden: ' . $product_id . ' - '. $user_log);
-      
-      // Verificar si tiene metadata de duración
-      $duracion = $item->get_meta('duracion_reserva');
-      if ($duracion) {
-        wcuph_log('[DEBUG] ✅ Duración encontrada en item: ' . $duracion . ' - '. $user_log);
-      } else {
-        wcuph_log('[DEBUG] ❌ No se encontró duración en item - '. $user_log);
-        
-        // Mostrar todos los metadatos para debugging
-        $item_data = $item->get_meta_data();
-        foreach ($item_data as $meta) {
-          $data = $meta->get_data();
-          wcuph_log('[DEBUG] META - Key: ' . $data['key'] . ' - Value: ' . (is_array($data['value']) ? json_encode($data['value']) : $data['value']) . ' - '. $user_log);
-        }
-      }
-    }
-  }
 }
