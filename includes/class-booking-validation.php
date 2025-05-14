@@ -2,11 +2,18 @@
 if (!defined('ABSPATH')) exit;
 
 class Booking_Validation
-{  public function __construct()
+{  
+  public function __construct()
   {
     add_action('woocommerce_add_to_cart_validation', [$this, 'wc_da_validar_horas_reserva'], 10, 5);
     add_action('woocommerce_checkout_process', [$this, 'wc_da_verificar_horas_antes_pago']);
     add_action('woocommerce_order_status_completed', [$this, 'wc_da_descontar_horas_al_completar_orden'], 10, 1);
+    
+    // Añadimos hooks para asegurar que la duración de la reserva se guarde en el pedido
+    add_filter('woocommerce_checkout_create_order_line_item', [$this, 'wc_da_guardar_duracion_en_item_orden'], 10, 4);
+    
+    // Hook para debugging (opcional - puedes eliminar después)
+    add_action('woocommerce_checkout_order_processed', [$this, 'wc_da_debug_orden_procesada'], 10, 3);
   }
 
   public function wc_da_validar_horas_reserva($passed, $product_id, $quantity, $variation_id = null, $variations = null, $cart_item_data = [])
@@ -35,7 +42,8 @@ class Booking_Validation
         if ($user_id === 0) {
           wcuph_log('[ERROR] Usuario no autenticado '.$user_log);
           $producto_horas = wc_get_product($producto_horas_id);
-          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';          wc_add_notice(sprintf(
+          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';          
+          wc_add_notice(sprintf(
             __('Necesitas comprar %1$s horas para esta reserva. <a href="%2$s" class="btn-wc-user-product-hours-checkout">Compra más horas</a>', 'WC-User-Product-Hours'),
             $duracion,
             $enlace_compra
@@ -53,7 +61,8 @@ class Booking_Validation
           wcuph_log('[VALIDACIÓN FALLIDA] Horas solicitadas: ' . $duracion . ' | Disponibles: ' . $horas_disponibles. ' - '. $user_log);
 
           $producto_horas = wc_get_product($producto_horas_id);
-          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';          wc_add_notice(sprintf(
+          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';          
+          wc_add_notice(sprintf(
             __('Necesitas %1$s horas para esta reserva. Dispones de %2$s. <a href="%3$s" class="btn-wc-user-product-hours-checkout">Compra más horas</a>', 'WC-User-Product-Hours'),
             $duracion,
             $horas_disponibles,
@@ -61,7 +70,8 @@ class Booking_Validation
           ), 'error');
 
           return false;
-        }        wcuph_log('[VALIDACIÓN EXITOSA] Horas suficientes'. ' - '. $user_log);
+        }        
+        wcuph_log('[VALIDACIÓN EXITOSA] Horas suficientes'. ' - '. $user_log);
         // Guardar la duración en el carrito para usarla después
         $cart_item_data['duracion_reserva'] = $duracion;
       }
@@ -71,7 +81,9 @@ class Booking_Validation
       wcuph_log('[EXCEPCIÓN] Error: ' . $e->getMessage());
       return false;
     }
-  }  // Las funciones wc_da_restaurar_horas_al_eliminar y wc_da_borrar_horas_al_deshacer fueron eliminadas
+  }  
+  
+  // Las funciones wc_da_restaurar_horas_al_eliminar y wc_da_borrar_horas_al_deshacer fueron eliminadas
   // ya que ahora las horas se descuentan al confirmar la reserva
   
   public function wc_da_verificar_horas_antes_pago()
@@ -146,6 +158,7 @@ class Booking_Validation
     
     wcuph_log('[VERIFICACIÓN EXITOSA] Horas suficientes para todas las reservas en el carrito. - ' . $user_log);
   }
+  
   public function wc_da_descontar_horas_al_completar_orden($order_id)
   {
     $order = wc_get_order($order_id);
@@ -174,24 +187,66 @@ class Booking_Validation
         // Obtener la duración desde los datos de la reserva
         $item_data = $item->get_meta_data();
         $duracion = 0;
+          // Buscar la duración en los metadatos del item
+        wcuph_log('[DEBUG] Analizando metadatos del item para el producto: ' . $product_id . ' - '. $user_log);
         
-        // Buscar la duración en los metadatos del item
+        // Imprimir todos los metadatos para debugging
         foreach ($item_data as $meta) {
           $data = $meta->get_data();
-          if ($data['key'] === '_booking_duration') {
+          wcuph_log('[DEBUG] Metadata encontrado - Key: ' . $data['key'] . ' - Value: ' . (is_array($data['value']) ? json_encode($data['value']) : $data['value']) . ' - '. $user_log);
+          
+          // Buscar en varios posibles campos donde pueda estar la duración
+          if ($data['key'] === '_booking_duration' || $data['key'] === 'duracion_reserva' || $data['key'] === '_duration') {
             $duracion = (int)$data['value'];
+            wcuph_log('[DEBUG] Duración encontrada en key: ' . $data['key'] . ' - Valor: ' . $duracion . ' - '. $user_log);
             break;
           }
         }
 
+        // Si no se encontró en los metadatos, buscar directamente en los datos del item
+        if ($duracion <= 0) {
+          // Intentar obtener la duración directamente del item
+          $duracion = $item->get_meta('duracion_reserva');
+          if ($duracion > 0) {
+            wcuph_log('[DEBUG] Duración encontrada usando get_meta: ' . $duracion . ' - '. $user_log);
+          }
+        }        
+        // Si aún no tenemos duración, intentar con la API de Bookings si está disponible
+        if ($duracion <= 0) {
+          // Comprobar si hay un ID de reserva asociado
+          $booking_id = $item->get_meta('_booking_id');
+          if ($booking_id) {
+            wcuph_log('[DEBUG] ID de reserva encontrado: ' . $booking_id . ' - '. $user_log);
+            // Si WooCommerce Bookings está activo
+            if (class_exists('WC_Booking')) {
+              $booking = new WC_Booking($booking_id);
+              if ($booking) {
+                $duracion = $booking->get_duration();
+                wcuph_log('[DEBUG] Duración obtenida de objeto WC_Booking: ' . $duracion . ' - '. $user_log);
+              }
+            }
+          }
+        }
+        
+        // Si seguimos sin duración, intentar una última opción - _wc_booking_duration si existe
+        if ($duracion <= 0) {
+          $booking_data = $item->get_meta('_wc_booking_data');
+          if (is_array($booking_data) && isset($booking_data['duration'])) {
+            $duracion = (int)$booking_data['duration'];
+            wcuph_log('[DEBUG] Duración obtenida de _wc_booking_data: ' . $duracion . ' - '. $user_log);
+          }
+        }
+        
         if ($duracion > 0) {
-          wcuph_log('[DEBUG] Duración detectada: ' . $duracion. ' - '. $user_log);
+          wcuph_log('[DEBUG] Duración detectada final: ' . $duracion. ' - '. $user_log);
           
           if (!isset($horas_a_descontar[$producto_horas_id])) {
             $horas_a_descontar[$producto_horas_id] = 0;
           }
           
           $horas_a_descontar[$producto_horas_id] += $duracion;
+        } else {
+          wcuph_log('[ERROR] No se pudo determinar la duración para el producto: ' . $product_id . ' - '. $user_log);
         }
       }
     }
@@ -210,6 +265,72 @@ class Booking_Validation
       
       update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
       wcuph_log('[DEBUG] Horas actualizadas para el usuario: ' . $user_id. ' - '. $user_log);
+    }
+  }
+
+  /**
+   * Guarda la duración de la reserva como metadato del item de la orden
+   * Este método se ejecuta cuando se crea cada línea de item en el checkout
+   */
+  public function wc_da_guardar_duracion_en_item_orden($item, $cart_item_key, $values, $order) 
+  {
+    $user_id = get_current_user_id();
+    $user_log = $user_id ? $user_id : 'SINUSER';
+    $product_id = $values['product_id'];
+    
+    wcuph_log('[DEBUG] Intentando guardar duración en item de orden. Producto: ' . $product_id . ' - '. $user_log);
+    
+    // Verificar si es un producto de reserva
+    if (array_key_exists($product_id, WCUPH_Config::get_relacion_productos())) {
+      // Obtener la duración desde los datos del carrito
+      $duracion = isset($values['duracion_reserva']) ? $values['duracion_reserva'] : 0;
+      
+      // Si no está en los datos del carrito directamente, intentar obtenerla de los datos de WC Bookings
+      if ($duracion <= 0 && isset($values['booking'])) {
+        $duracion = isset($values['booking']['_duration']) ? (int)$values['booking']['_duration'] : 0;
+      }
+      
+      if ($duracion > 0) {
+        wcuph_log('[DEBUG] Guardando duración ' . $duracion . ' en item de orden para producto: ' . $product_id . ' - '. $user_log);
+        $item->add_meta_data('duracion_reserva', $duracion);
+      } else {
+        wcuph_log('[ERROR] No se pudo determinar la duración para guardar en item de orden. Producto: ' . $product_id . ' - '. $user_log);
+      }
+    }
+    
+    return $item;
+  }
+
+  /**
+   * Función para debug de la orden procesada
+   */
+  public function wc_da_debug_orden_procesada($order_id, $posted_data, $order) 
+  {
+    $user_id = get_current_user_id();
+    $user_log = $user_id ? $user_id : 'SINUSER';
+    
+    wcuph_log('[DEBUG] Orden procesada: ' . $order_id . ' - Usuario: ' . $user_log);
+    
+    // Debug para verificar los items de la orden
+    foreach ($order->get_items() as $item_id => $item) {
+      $product_id = $item->get_product_id();
+      
+      wcuph_log('[DEBUG] Item en orden: ' . $product_id . ' - '. $user_log);
+      
+      // Verificar si tiene metadata de duración
+      $duracion = $item->get_meta('duracion_reserva');
+      if ($duracion) {
+        wcuph_log('[DEBUG] ✅ Duración encontrada en item: ' . $duracion . ' - '. $user_log);
+      } else {
+        wcuph_log('[DEBUG] ❌ No se encontró duración en item - '. $user_log);
+        
+        // Mostrar todos los metadatos para debugging
+        $item_data = $item->get_meta_data();
+        foreach ($item_data as $meta) {
+          $data = $meta->get_data();
+          wcuph_log('[DEBUG] META - Key: ' . $data['key'] . ' - Value: ' . (is_array($data['value']) ? json_encode($data['value']) : $data['value']) . ' - '. $user_log);
+        }
+      }
     }
   }
 }
