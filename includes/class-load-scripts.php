@@ -41,8 +41,6 @@ class WCUPH_Load_Scripts
               [],
               filemtime(plugin_dir_path(dirname(__FILE__)) . 'assets/wcuph-styles.css')
           );
-          
-          wcuph_log('[DEBUG] Estilos WCUPH cargados en frontend');
       }
   }
 }
