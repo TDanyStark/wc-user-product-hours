@@ -35,10 +35,8 @@ class Booking_Validation
         if ($user_id === 0) {
           wcuph_log('[ERROR] Usuario no autenticado '.$user_log);
           $producto_horas = wc_get_product($producto_horas_id);
-          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';
-
-          wc_add_notice(sprintf(
-            __('Necesitas comprar %1$s horas para esta reserva. <a href="%2$s">Compra más horas</a>', 'WC-User-Product-Hours'),
+          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';          wc_add_notice(sprintf(
+            __('Necesitas comprar %1$s horas para esta reserva. <a href="%2$s" class="btn-wc-user-product-hours-checkout">Compra más horas</a>', 'WC-User-Product-Hours'),
             $duracion,
             $enlace_compra
           ), 'error');
@@ -55,10 +53,8 @@ class Booking_Validation
           wcuph_log('[VALIDACIÓN FALLIDA] Horas solicitadas: ' . $duracion . ' | Disponibles: ' . $horas_disponibles. ' - '. $user_log);
 
           $producto_horas = wc_get_product($producto_horas_id);
-          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';
-
-          wc_add_notice(sprintf(
-            __('Necesitas %1$s horas para esta reserva. Dispones de %2$s. <a href="%3$s">Compra más horas</a>', 'WC-User-Product-Hours'),
+          $enlace_compra = $producto_horas ? $producto_horas->get_permalink() : '#';          wc_add_notice(sprintf(
+            __('Necesitas %1$s horas para esta reserva. Dispones de %2$s. <a href="%3$s" class="btn-wc-user-product-hours-checkout">Compra más horas</a>', 'WC-User-Product-Hours'),
             $duracion,
             $horas_disponibles,
             $enlace_compra
@@ -137,7 +133,7 @@ class Booking_Validation
         $enlace_carrito = wc_get_cart_url();
         
         wc_add_notice(sprintf(
-          __('No tienes suficientes horas para completar la compra. Necesitas %1$s horas para las reservas en tu carrito, pero solo dispones de %2$s. <a href="%3$s" class="button">Compra más horas</a> o <a href="%4$s" class="button">Ve a tu carrito</a> y elimina las reservas que no necesites.', 'WC-User-Product-Hours'),
+          __('No tienes suficientes horas para completar la compra. Necesitas %1$s horas para las reservas en tu carrito, pero solo dispones de %2$s. <a href="%3$s" class="btn-wc-user-product-hours-checkout">Compra más horas</a> o <a href="%4$s" class="btn-wc-user-product-hours-checkout">Ve a tu carrito</a> y elimina las reservas que no necesites.', 'WC-User-Product-Hours'),
           $horas,
           $horas_disponibles,
           $enlace_compra,

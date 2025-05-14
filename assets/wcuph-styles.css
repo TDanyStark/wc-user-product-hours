@@ -1,0 +1,49 @@
+/* 
+* WC User Product Hours - Estilos
+* Estilos personalizados para los botones del plugin
+*/
+
+.btn-wc-user-product-hours-checkout {
+    display: inline-block;
+    background-color: #4CAF50;
+    color: white !important;
+    padding: 10px 15px;
+    margin: 5px;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+}
+
+.btn-wc-user-product-hours-checkout:hover {
+    background-color: #45a049;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transform: translateY(-2px);
+}
+
+.btn-wc-user-product-hours-checkout.secondary {
+    background-color: #f44336;
+}
+
+.btn-wc-user-product-hours-checkout.secondary:hover {
+    background-color: #e53935;
+}
+
+/* Estilos para mensajes de error con botones */
+.woocommerce-error .btn-wc-user-product-hours-checkout {
+    margin-top: 10px;
+    display: inline-block;
+    margin-right: 10px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .btn-wc-user-product-hours-checkout {
+        display: block;
+        margin: 10px 0;
+        width: 100%;
+    }
+}
