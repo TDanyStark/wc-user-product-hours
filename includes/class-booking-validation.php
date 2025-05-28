@@ -258,30 +258,34 @@ class Booking_Validation
             $detalles_bug .= "\n----------------------------------------";
         }
       }
-      
-      // Si se detectaron horas negativas, enviar correo electrónico
+        // Si se detectaron horas negativas, enviar correo electrónico
       if ($horas_negativas_detectadas) {
-        // Obtener información del usuario
-        $user = get_user_by('id', $user_id);
-        $username = $user ? $user->user_login : 'ID: ' . $user_id;
-        $email = $user ? $user->user_email : 'No disponible';
-        
-        // Preparar contenido del correo
-        $asunto = 'Bug encontrado';
-        $mensaje = "Se ha detectado un bug en el sistema de horas de productos.\n\n";
-        $mensaje .= "Detalles del usuario:\n";
-        $mensaje .= "ID: " . $user_id . "\n";
-        $mensaje .= "Nombre de usuario: " . $username . "\n";
-        $mensaje .= "Email: " . $email . "\n\n";
-        $mensaje .= "Detalles de la orden:\n";
-        $mensaje .= "ID de orden: " . $order_id . "\n";
-        $mensaje .= "URL de la orden: " . admin_url('post.php?post=' . $order_id . '&action=edit') . "\n\n";
-        $mensaje .= "Detalles del bug (horas negativas):" . $detalles_bug;
-        
-        // Enviar correo
-        $enviado = wp_mail('daniel.amadove@gmail.com', $asunto, $mensaje);
-        
-        wcuph_log('[ALERTA] Bug detectado - Horas negativas en usuario ID: ' . $user_id . ' - Orden ID: ' . $order_id . ' - Email enviado: ' . ($enviado ? 'Sí' : 'No'));
+        try {
+          // Obtener información del usuario
+          $user = get_user_by('id', $user_id);
+          $username = $user ? $user->user_login : 'ID: ' . $user_id;
+          $email = $user ? $user->user_email : 'No disponible';
+          
+          // Preparar contenido del correo
+          $asunto = 'Bug encontrado';
+          $mensaje = "Se ha detectado un bug en el sistema de horas de productos.\n\n";
+          $mensaje .= "Detalles del usuario:\n";
+          $mensaje .= "ID: " . $user_id . "\n";
+          $mensaje .= "Nombre de usuario: " . $username . "\n";
+          $mensaje .= "Email: " . $email . "\n\n";
+          $mensaje .= "Detalles de la orden:\n";
+          $mensaje .= "ID de orden: " . $order_id . "\n";
+          $mensaje .= "URL de la orden: " . admin_url('post.php?post=' . $order_id . '&action=edit') . "\n\n";
+          $mensaje .= "Detalles del bug (horas negativas):" . $detalles_bug;
+          
+          // Enviar correo
+          $enviado = wp_mail('daniel.amadove@gmail.com', $asunto, $mensaje);
+          
+          wcuph_log('[ALERTA] Bug detectado - Horas negativas en usuario ID: ' . $user_id . ' - Orden ID: ' . $order_id . ' - Email enviado: ' . ($enviado ? 'Sí' : 'No'));
+        } catch (Exception $e) {
+          // Registrar el error pero permitir que el proceso continúe
+          wcuph_log('[ERROR] No se pudo enviar el correo de alerta sobre horas negativas: ' . $e->getMessage() . ' - Usuario ID: ' . $user_id . ' - Orden ID: ' . $order_id);
+        }
       }
       
       update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
