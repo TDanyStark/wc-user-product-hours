@@ -232,11 +232,11 @@ class Booking_Validation
           wcuph_log('[ERROR] No se pudo determinar la duración para el producto: ' . $product_id . ' - '. $user_log);
         }
       }
-    }
-
-    // Si hay horas para descontar, actualizamos los metadatos del usuario
+    }    // Si hay horas para descontar, actualizamos los metadatos del usuario
     if (!empty($horas_a_descontar)) {
       $horas_acumuladas = wcuph_get_accumulated_hours($user_id);
+      $horas_negativas_detectadas = false;
+      $detalles_bug = '';
       
       foreach ($horas_a_descontar as $producto_id => $horas) {
         $horas_actuales = isset($horas_acumuladas[$producto_id]) ? $horas_acumuladas[$producto_id] : 0;
@@ -244,6 +244,44 @@ class Booking_Validation
         
         wcuph_log('[DESCONTAR HORAS] Producto: ' . $producto_id . ', Horas antes: ' . $horas_actuales . 
           ', Horas descontadas: ' . $horas . ', Horas después: ' . $horas_acumuladas[$producto_id]. ' - '. $user_log);
+        
+        // Verificar si las horas han quedado en negativo
+        if ($horas_acumuladas[$producto_id] < 0) {
+            $horas_negativas_detectadas = true;
+            $producto = wc_get_product($producto_id);
+            $nombre_producto = $producto ? $producto->get_name() : 'Producto ID: ' . $producto_id;
+            
+            $detalles_bug .= "\nProducto: " . $nombre_producto . " (ID: " . $producto_id . ")";
+            $detalles_bug .= "\nHoras antes: " . $horas_actuales;
+            $detalles_bug .= "\nHoras descontadas: " . $horas;
+            $detalles_bug .= "\nHoras después: " . $horas_acumuladas[$producto_id];
+            $detalles_bug .= "\n----------------------------------------";
+        }
+      }
+      
+      // Si se detectaron horas negativas, enviar correo electrónico
+      if ($horas_negativas_detectadas) {
+        // Obtener información del usuario
+        $user = get_user_by('id', $user_id);
+        $username = $user ? $user->user_login : 'ID: ' . $user_id;
+        $email = $user ? $user->user_email : 'No disponible';
+        
+        // Preparar contenido del correo
+        $asunto = 'Bug encontrado';
+        $mensaje = "Se ha detectado un bug en el sistema de horas de productos.\n\n";
+        $mensaje .= "Detalles del usuario:\n";
+        $mensaje .= "ID: " . $user_id . "\n";
+        $mensaje .= "Nombre de usuario: " . $username . "\n";
+        $mensaje .= "Email: " . $email . "\n\n";
+        $mensaje .= "Detalles de la orden:\n";
+        $mensaje .= "ID de orden: " . $order_id . "\n";
+        $mensaje .= "URL de la orden: " . admin_url('post.php?post=' . $order_id . '&action=edit') . "\n\n";
+        $mensaje .= "Detalles del bug (horas negativas):" . $detalles_bug;
+        
+        // Enviar correo
+        $enviado = wp_mail('daniel.amadove@gmail.com', $asunto, $mensaje);
+        
+        wcuph_log('[ALERTA] Bug detectado - Horas negativas en usuario ID: ' . $user_id . ' - Orden ID: ' . $order_id . ' - Email enviado: ' . ($enviado ? 'Sí' : 'No'));
       }
       
       update_user_meta($user_id, 'wc_horas_acumuladas', $horas_acumuladas);
