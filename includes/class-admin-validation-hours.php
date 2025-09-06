@@ -122,26 +122,29 @@ class WCUPH_Admin_Validation_Hours
                     if (!is_array($orders)) $orders = [];
                 }
 
-                // Si no tenemos compradas en meta, intentar calcularlas explorando órdenes (costoso)
-                if ($compradas === 0 && function_exists('wc_get_orders')) {
+                // Siempre calcular horas usadas: recorrer todas las órdenes del usuario y sumar duraciones
+                if (function_exists('wc_get_orders')) {
                     try {
-                        $orders_for_calc = wc_get_orders([
+                        $orders_all = wc_get_orders([
                             'customer' => $user_id,
                             'limit' => -1,
                             'status' => ['completed', 'processing', 'on-hold', 'pending']
                         ]);
-                        if (is_array($orders_for_calc)) {
-                            foreach ($orders_for_calc as $order) {
+
+                        if (is_array($orders_all)) {
+                            foreach ($orders_all as $order) {
                                 if (!is_object($order) || !method_exists($order, 'get_items')) continue;
                                 foreach ($order->get_items() as $item) {
                                     $pid = (int)(method_exists($item, 'get_product_id') ? $item->get_product_id() : 0);
                                     $qty = (int)(method_exists($item, 'get_quantity') ? $item->get_quantity() : 1);
-                                    // Si el item es el producto de horas seleccionado
-                                    if ($pid === $selected_horas) {
+
+                                    // Si el item es el producto de horas seleccionado y no tenemos meta, sumarlo para 'compradas'
+                                    if ($compradas === 0 && $pid === $selected_horas) {
                                         $horas_unit = $this->obtener_horas_desde_item_variation($item);
                                         if ($horas_unit > 0) $compradas += $horas_unit * $qty;
                                     }
-                                    // Si el item es un booking relacionado, sumar usada
+
+                                    // Si el item es un booking relacionado al producto de horas seleccionado, sumar usada
                                     if (in_array($pid, $bookings_para_horas, true)) {
                                         $dur = $this->obtener_duracion_desde_item($item);
                                         if ($dur > 0) $usadas += $dur * $qty;
@@ -150,34 +153,7 @@ class WCUPH_Admin_Validation_Hours
                             }
                         }
                     } catch (Exception $e) {
-                        // registrar pero no detener todo
-                        if (function_exists('wcuph_log')) wcuph_log('[WARN] Error calculando horas desde órdenes: ' . $e->getMessage());
-                    }
-                } else {
-                    // Ya tenemos compradas desde meta: solo calcular usadas
-                    if (function_exists('wc_get_orders')) {
-                        try {
-                            $orders_for_used = wc_get_orders([
-                                'customer' => $user_id,
-                                'limit' => -1,
-                                'status' => ['completed', 'processing', 'on-hold', 'pending']
-                            ]);
-                            if (is_array($orders_for_used)) {
-                                foreach ($orders_for_used as $order) {
-                                    if (!is_object($order) || !method_exists($order, 'get_items')) continue;
-                                    foreach ($order->get_items() as $item) {
-                                        $pid = (int)(method_exists($item, 'get_product_id') ? $item->get_product_id() : 0);
-                                        $qty = (int)(method_exists($item, 'get_quantity') ? $item->get_quantity() : 1);
-                                        if (in_array($pid, $bookings_para_horas, true)) {
-                                            $dur = $this->obtener_duracion_desde_item($item);
-                                            if ($dur > 0) $usadas += $dur * $qty;
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (Exception $e) {
-                            if (function_exists('wcuph_log')) wcuph_log('[WARN] Error calculando horas usadas: ' . $e->getMessage());
-                        }
+                        if (function_exists('wcuph_log')) wcuph_log('[WARN] Error al sumar horas en órdenes: ' . $e->getMessage());
                     }
                 }
 
