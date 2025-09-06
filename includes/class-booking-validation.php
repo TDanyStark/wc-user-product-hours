@@ -82,7 +82,6 @@ class Booking_Validation
   
   // Las funciones wc_da_restaurar_horas_al_eliminar y wc_da_borrar_horas_al_deshacer fueron eliminadas
   // ya que ahora las horas se descuentan al confirmar la reserva
-  
   public function wc_da_verificar_horas_antes_pago()
   {
     $user_id = get_current_user_id();
