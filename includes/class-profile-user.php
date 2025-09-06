@@ -178,6 +178,49 @@ class WCUPH_User_Hours_Display
     } else {
       echo '<p>No hay reservas registradas para este usuario.</p>';
     }
+
+    // Pedidos de Productos Horas
+    echo '<h2 style="margin-top: 30px;">Pedidos de Productos Horas</h2>';
+    $productos_horas = [];
+    foreach ($pedidos as $pedido) {
+      foreach ($pedido->get_items() as $item) {
+        $producto = $item->get_product();
+        if (!$producto) continue;
+        $categorias = wp_get_post_terms($producto->get_id(), 'product_cat', ['fields' => 'slugs']);
+        if (in_array('horas-ensambles', $categorias)) {
+          $productos_horas[] = [
+            'producto' => $producto->get_name(),
+            'cantidad' => $item->get_quantity(),
+            'pedido_id' => $pedido->get_id(),
+            'fecha' => $pedido->get_date_created()->date('Y-m-d'),
+          ];
+        }
+      }
+    }
+    if (!empty($productos_horas)) {
+      echo '<table class="widefat fixed">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Pedido</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>';
+      foreach ($productos_horas as $item) {
+        echo '<tr>
+                <td>' . esc_html($item['producto']) . '</td>
+                <td>' . esc_html($item['cantidad']) . '</td>
+                <td><a href="' . esc_url(get_edit_post_link($item['pedido_id'])) . '">#' . $item['pedido_id'] . '</a></td>
+                <td>' . esc_html($item['fecha']) . '</td>
+              </tr>';
+      }
+      echo '</tbody></table>';
+    } else {
+      echo '<p>No hay pedidos de productos horas.</p>';
+    }
+
     echo '</div>';
   }
 }
