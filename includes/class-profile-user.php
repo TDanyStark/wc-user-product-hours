@@ -76,6 +76,7 @@ class WCUPH_User_Hours_Display
             </tr>
         </thead>
         <tbody>';
+    $productos_debug = []; // para depuración (admin)
 
     foreach ($pedidos as $pedido) {
       foreach ($pedido->get_items() as $item) {
@@ -83,9 +84,31 @@ class WCUPH_User_Hours_Display
         if (!$producto) {
           continue;
         }
+        // Si es una variación, usar el ID del padre porque las variaciones no tienen categorías
+        $product_id_for_terms = (method_exists($producto, 'is_type') && $producto->is_type('variation')) ? $producto->get_parent_id() : $producto->get_id();
 
-        $categorias = wp_get_post_terms($producto->get_id(), 'product_cat', ['fields' => 'names']);
+        // Obtener nombres y slugs; si no hay términos, intentar con el padre (por si hay inconsistencia)
+        $categorias = wp_get_post_terms($product_id_for_terms, 'product_cat', ['fields' => 'names']);
+        $categoria_slugs = wp_get_post_terms($product_id_for_terms, 'product_cat', ['fields' => 'slugs']);
+        if (empty($categorias)) {
+          $parent_id = wp_get_post_parent_id($product_id_for_terms);
+          if ($parent_id) {
+            $categorias = wp_get_post_terms($parent_id, 'product_cat', ['fields' => 'names']);
+            $categoria_slugs = wp_get_post_terms($parent_id, 'product_cat', ['fields' => 'slugs']);
+            // actualizar el id usado para referencia
+            $product_id_for_terms = $parent_id;
+          }
+        }
         $categoria_nombre = !empty($categorias) ? implode(', ', $categorias) : 'Sin categoría';
+
+        // Guardar info para depuración (visible solo a administradores)
+        $productos_debug[] = [
+          'order_id' => $pedido->get_id(),
+          'item_name' => $producto->get_name(),
+          'product_lookup_id' => $product_id_for_terms,
+          'term_names' => $categorias,
+          'term_slugs' => $categoria_slugs,
+        ];
 
         echo '<tr>
                 <td>' . esc_html($producto->get_name()) . '</td>
@@ -186,8 +209,11 @@ class WCUPH_User_Hours_Display
       foreach ($pedido->get_items() as $item) {
         $producto = $item->get_product();
         if (!$producto) continue;
-        $categorias = wp_get_post_terms($producto->get_id(), 'product_cat', ['fields' => 'slugs']);
-        if (in_array('horas-ensambles', $categorias)) {
+
+        // Usar ID del producto padre si es variación
+        $product_id_for_terms = (method_exists($producto, 'is_type') && $producto->is_type('variation')) ? $producto->get_parent_id() : $producto->get_id();
+        $categorias = wp_get_post_terms($product_id_for_terms, 'product_cat', ['fields' => 'slugs']);
+        if (in_array('horas-ensambles', (array) $categorias)) {
           $productos_horas[] = [
             'producto' => $producto->get_name(),
             'cantidad' => $item->get_quantity(),
