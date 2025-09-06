@@ -34,7 +34,7 @@ class WCUPH_Admin_Hours
         $solo_con_horas = isset($_GET['solo_con_horas']) ? true : false;
 
         $usuarios = $wpdb->get_results("
-            SELECT u.ID, u.display_name, um.meta_value
+            SELECT u.ID, u.display_name, u.user_email, um.meta_value
             FROM {$wpdb->users} u
             LEFT JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
             WHERE um.meta_key = 'wc_horas_acumuladas'
@@ -50,7 +50,7 @@ class WCUPH_Admin_Hours
         echo '</form>';
 
         echo '<table class="widefat fixed striped">';
-        echo '<thead><tr><th>Usuario</th><th>Producto</th><th>Horas</th></tr></thead><tbody>';
+        echo '<thead><tr><th>Usuario</th><th>Email</th><th>Producto</th><th>Horas</th></tr></thead><tbody>';
 
         foreach ($usuarios as $usuario) {
             $horas = maybe_unserialize($usuario->meta_value);
@@ -66,6 +66,7 @@ class WCUPH_Admin_Hours
 
                     echo '<tr>';
                     echo '<td>' . $usuario->display_name . '</td>';
+                    echo '<td>' . $usuario->user_email . '</td>';
                     echo '<td>' . $nombre_producto . '</td>';
                     echo '<td>' . $cantidad . '</td>';
                     echo '</tr>';
@@ -75,6 +76,7 @@ class WCUPH_Admin_Hours
             if (!$tiene_horas && !$solo_con_horas) {
                 echo '<tr>';
                 echo '<td>' . $usuario->display_name . '</td>';
+                echo '<td>' . $usuario->user_email . '</td>';
                 echo '<td>-</td>';
                 echo '<td>0</td>';
                 echo '</tr>';
@@ -89,15 +91,26 @@ class WCUPH_Admin_Hours
     {
         global $wpdb;
 
+        // Limpiar cualquier output previo
+        if (ob_get_level()) {
+            ob_clean();
+        }
+
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename=horas_usuarios.csv');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
 
         $output = fopen('php://output', 'w');
 
-        fputcsv($output, ['Usuario', 'Producto', 'Horas']);
+        fputcsv($output, ['Usuario', 'Email', 'Producto', 'Horas']);
+
+        // Verificar si se está filtrando por usuarios con horas
+        $solo_con_horas = isset($_GET['solo_con_horas']) ? true : false;
 
         $usuarios = $wpdb->get_results("
-            SELECT u.ID, u.display_name, um.meta_value
+            SELECT u.ID, u.display_name, u.user_email, um.meta_value
             FROM {$wpdb->users} u
             LEFT JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
             WHERE um.meta_key = 'wc_horas_acumuladas'
@@ -107,10 +120,20 @@ class WCUPH_Admin_Hours
             $horas = maybe_unserialize($usuario->meta_value);
             if (!is_array($horas)) continue;
 
+            $tiene_horas = false;
+
             foreach ($horas as $producto_id => $cantidad) {
-                $producto = wc_get_product($producto_id);
-                $nombre_producto = $producto ? $producto->get_name() : "Producto #$producto_id";
-                fputcsv($output, [$usuario->display_name, $nombre_producto, $cantidad]);
+                if ($cantidad > 0) {
+                    $tiene_horas = true;
+                    $producto = wc_get_product($producto_id);
+                    $nombre_producto = $producto ? $producto->get_name() : "Producto #$producto_id";
+                    fputcsv($output, [$usuario->display_name, $usuario->user_email, $nombre_producto, $cantidad]);
+                }
+            }
+
+            // Si no tiene horas y estamos filtrando solo usuarios con horas, no incluir
+            if (!$tiene_horas && $solo_con_horas) {
+                continue;
             }
         }
 
