@@ -26,6 +26,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-profile-user.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-load-scripts.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-load-ajax.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-admin-hours.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-admin-validation-hours.php';
 
 class WC_User_Product_Hours
 {
@@ -39,6 +40,7 @@ class WC_User_Product_Hours
         new WCUPH_Load_Scripts();
         new WCUPH_load_AJAX();
         new WCUPH_Admin_Hours();
+    new WCUPH_Admin_Validation_Hours();
     }
 }
 
