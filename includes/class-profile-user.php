@@ -49,78 +49,14 @@ class WCUPH_User_Hours_Display
       echo '</tbody></table>';
     }
 
-    // Productos comprados de la categoría "horas-ensambles"
-    echo '<h2 style="margin-top: 30px;">Productos Comprados</h2>';
-
+    // No mostramos la tabla general de "Productos Comprados" aquí.
+    // Solo recuperamos los pedidos del usuario para usarlos en las secciones siguientes.
     $user_id = $user->ID;
     $pedidos = wc_get_orders([
       'customer_id' => $user_id,
       'status'      => 'completed',
       'limit'       => -1,
     ]);
-
-    if (empty($pedidos)) {
-      echo '<p>Este usuario no ha comprado productos aún.</p>';
-      echo '</div>';
-      return;
-    }
-
-    echo '<table class="widefat fixed" style="margin-top:10px;">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Cantidad</th>
-                <th>Pedido</th>
-                <th>Fecha</th>
-            </tr>
-        </thead>
-        <tbody>';
-    $productos_debug = []; // para depuración (admin)
-
-    foreach ($pedidos as $pedido) {
-      foreach ($pedido->get_items() as $item) {
-        $producto = $item->get_product();
-        if (!$producto) {
-          continue;
-        }
-        // Si es una variación, usar el ID del padre porque las variaciones no tienen categorías
-        $product_id_for_terms = (method_exists($producto, 'is_type') && $producto->is_type('variation')) ? $producto->get_parent_id() : $producto->get_id();
-
-        // Obtener nombres y slugs; si no hay términos, intentar con el padre (por si hay inconsistencia)
-        $categorias = wp_get_post_terms($product_id_for_terms, 'product_cat', ['fields' => 'names']);
-        $categoria_slugs = wp_get_post_terms($product_id_for_terms, 'product_cat', ['fields' => 'slugs']);
-        if (empty($categorias)) {
-          $parent_id = wp_get_post_parent_id($product_id_for_terms);
-          if ($parent_id) {
-            $categorias = wp_get_post_terms($parent_id, 'product_cat', ['fields' => 'names']);
-            $categoria_slugs = wp_get_post_terms($parent_id, 'product_cat', ['fields' => 'slugs']);
-            // actualizar el id usado para referencia
-            $product_id_for_terms = $parent_id;
-          }
-        }
-        $categoria_nombre = !empty($categorias) ? implode(', ', $categorias) : 'Sin categoría';
-
-        // Guardar info para depuración (visible solo a administradores)
-        $productos_debug[] = [
-          'order_id' => $pedido->get_id(),
-          'item_name' => $producto->get_name(),
-          'product_lookup_id' => $product_id_for_terms,
-          'term_names' => $categorias,
-          'term_slugs' => $categoria_slugs,
-        ];
-
-        echo '<tr>
-                <td>' . esc_html($producto->get_name()) . '</td>
-                <td>' . esc_html($categoria_nombre) . '</td>
-                <td>' . esc_html($item->get_quantity()) . '</td>
-                <td><a href="' . esc_url(get_edit_post_link($pedido->get_id())) . '">#' . $pedido->get_id() . '</a></td>
-                <td>' . esc_html($pedido->get_date_created()->date('Y-m-d')) . '</td>
-            </tr>';
-      }
-    }
-
-    echo '</tbody></table>';
 
     // Historial de Reservas
     $args = [
@@ -202,46 +138,54 @@ class WCUPH_User_Hours_Display
       echo '<p>No hay reservas registradas para este usuario.</p>';
     }
 
-    // Pedidos de Productos Horas
+    // Pedidos de Productos Horas: sumar horas por producto (agrupar por producto padre)
     echo '<h2 style="margin-top: 30px;">Pedidos de Productos Horas</h2>';
-    $productos_horas = [];
+    $horas_por_producto = [];
     foreach ($pedidos as $pedido) {
       foreach ($pedido->get_items() as $item) {
         $producto = $item->get_product();
         if (!$producto) continue;
 
-        // Usar ID del producto padre si es variación
+        // Usar ID del producto padre si es variación (las variaciones no tienen taxonomías)
         $product_id_for_terms = (method_exists($producto, 'is_type') && $producto->is_type('variation')) ? $producto->get_parent_id() : $producto->get_id();
+
+        // Solo considerar productos en la categoría horas-ensambles
         $categorias = wp_get_post_terms($product_id_for_terms, 'product_cat', ['fields' => 'slugs']);
-        if (in_array('horas-ensambles', (array) $categorias)) {
-          $productos_horas[] = [
-            'producto' => $producto->get_name(),
-            'cantidad' => $item->get_quantity(),
-            'pedido_id' => $pedido->get_id(),
-            'fecha' => $pedido->get_date_created()->date('Y-m-d'),
+        if (!in_array('horas-ensambles', (array) $categorias)) continue;
+
+        // Agrupar por el producto padre (mostrar nombre del padre)
+        $group_id = (method_exists($producto, 'is_type') && $producto->is_type('variation')) ? $producto->get_parent_id() : $producto->get_id();
+        $parent_post = get_post($group_id);
+        $group_name = $parent_post ? $parent_post->post_title : $producto->get_name();
+
+        $cantidad = floatval($item->get_quantity());
+        if (!isset($horas_por_producto[$group_id])) {
+          $horas_por_producto[$group_id] = [
+            'name' => $group_name,
+            'total' => 0,
           ];
         }
+        $horas_por_producto[$group_id]['total'] += $cantidad;
       }
     }
-    if (!empty($productos_horas)) {
+
+    if (!empty($horas_por_producto)) {
       echo '<table class="widefat fixed">
               <thead>
                 <tr>
                   <th>Producto</th>
-                  <th>Cantidad</th>
-                  <th>Pedido</th>
-                  <th>Fecha</th>
+                  <th>Horas Totales</th>
                 </tr>
               </thead>
               <tbody>';
-      foreach ($productos_horas as $item) {
+
+      foreach ($horas_por_producto as $row) {
         echo '<tr>
-                <td>' . esc_html($item['producto']) . '</td>
-                <td>' . esc_html($item['cantidad']) . '</td>
-                <td><a href="' . esc_url(get_edit_post_link($item['pedido_id'])) . '">#' . $item['pedido_id'] . '</a></td>
-                <td>' . esc_html($item['fecha']) . '</td>
+                <td>' . esc_html($row['name']) . '</td>
+                <td>' . esc_html($row['total']) . ' horas</td>
               </tr>';
       }
+
       echo '</tbody></table>';
     } else {
       echo '<p>No hay pedidos de productos horas.</p>';
