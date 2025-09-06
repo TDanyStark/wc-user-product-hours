@@ -24,94 +24,189 @@ class WCUPH_Admin_Validation_Hours
     {
         echo '<div class="wrap"><h1>Validación de Horas - Compradas vs Usadas</h1>';
 
-        echo '<p>Relación Booking => Producto de horas:</p>';
-        echo '<ul>';
-        foreach (WCUPH_Config::get_relacion_productos() as $booking_id => $horas_id) {
-            $booking = wc_get_product($booking_id);
-            $horas = wc_get_product($horas_id);
-            $booking_name = $booking ? $booking->get_name() : "Producto #$booking_id";
-            $horas_name = $horas ? $horas->get_name() : "Producto #$horas_id";
-            echo '<li>' . esc_html($booking_name) . ' (ID: ' . $booking_id . ') => ' . esc_html($horas_name) . ' (ID: ' . $horas_id . ')</li>';
-        }
-        echo '</ul>';
+        try {
+            // Selector de producto de horas a validar
+            $productos_horas = WCUPH_Config::get_productos_con_horas();
+            $selected_horas = isset($_GET['product_horas']) ? intval($_GET['product_horas']) : (in_array(3701, $productos_horas) ? 3701 : $productos_horas[0]);
 
-        // Obtener usuarios que tengan meta o todos si no
-        global $wpdb;
-        $usuarios = $wpdb->get_results("SELECT u.ID, u.display_name, u.user_email FROM {$wpdb->users} u");
+            echo '<form method="get" style="margin-bottom:12px;">';
+            echo '<input type="hidden" name="page" value="validation-hours">';
+            echo '<label for="product_horas">Producto de horas: </label>';
+            echo '<select id="product_horas" name="product_horas">';
+            foreach ($productos_horas as $ph) {
+                $prod = function_exists('wc_get_product') ? wc_get_product($ph) : false;
+                $name = $prod ? $prod->get_name() : ('Producto #' . intval($ph));
+                $sel = $ph === $selected_horas ? ' selected' : '';
+                echo '<option value="' . intval($ph) . '"' . $sel . '>' . esc_html($name) . ' (ID:' . intval($ph) . ')</option>';
+            }
+            echo '</select> ';
+            submit_button('Filtrar', 'secondary', '', false);
+            echo '</form>';
 
-        echo '<table class="widefat fixed striped">';
-        echo '<thead><tr><th>Usuario</th><th>Email</th><th>Producto horas</th><th>Horas compradas</th><th>Horas usadas</th><th>Saldo</th></tr></thead><tbody>';
+            // Mostrar la relación para el producto seleccionado
+            echo '<p>Booking => Producto de horas seleccionadas:</p>';
+            echo '<ul>';
+            $relaciones = WCUPH_Config::get_relacion_productos();
+            foreach ($relaciones as $booking_id => $horas_id) {
+                if ($horas_id !== $selected_horas) continue;
+                $booking = function_exists('wc_get_product') ? wc_get_product($booking_id) : false;
+                $booking_name = $booking ? $booking->get_name() : "Producto #$booking_id";
+                echo '<li>' . esc_html($booking_name) . ' (ID: ' . intval($booking_id) . ')</li>';
+            }
+            echo '</ul>';
 
-        $productos_horas = WCUPH_Config::get_productos_con_horas();
-
-        foreach ($usuarios as $usuario) {
-            $user_id = $usuario->ID;
-
-            // Calcular horas compradas y usadas por producto de horas para este usuario
-            $compradas = [];
-            $usadas = [];
-
-            // Obtener órdenes del usuario (varios estados relevantes)
-            $orders = wc_get_orders([
-                'customer' => $user_id,
-                'limit' => -1,
-                'status' => ['completed', 'processing', 'on-hold', 'pending']
-            ]);
-
-            foreach ($orders as $order) {
-                foreach ($order->get_items() as $item) {
-                    $product_id = $item->get_product_id();
-                    $qty = (int)$item->get_quantity();
-
-                    // Si el item es un producto de horas (compra de horas)
-                    if (in_array($product_id, $productos_horas)) {
-                        $horas_unit = $this->obtener_horas_desde_item_variation($item);
-                        if ($horas_unit > 0) {
-                            if (!isset($compradas[$product_id])) $compradas[$product_id] = 0;
-                            $compradas[$product_id] += $horas_unit * $qty;
-                        }
-                    }
-
-                    // Si el item es un producto booking que consume horas
-                    $rel = WCUPH_Config::get_relacion_productos();
-                    if (array_key_exists($product_id, $rel)) {
-                        $producto_horas_id = $rel[$product_id];
-                        $duracion = $this->obtener_duracion_desde_item($item);
-                        if ($duracion > 0) {
-                            if (!isset($usadas[$producto_horas_id])) $usadas[$producto_horas_id] = 0;
-                            $usadas[$producto_horas_id] += $duracion * $qty;
-                        }
-                    }
+            global $wpdb;
+            // Preferir usuarios que ya tengan meta 'wc_horas_acumuladas' para rendimiento
+            $usuarios = $wpdb->get_results("SELECT u.ID, u.display_name, u.user_email FROM {$wpdb->users} u JOIN {$wpdb->usermeta} um ON u.ID = um.user_id WHERE um.meta_key = 'wc_horas_acumuladas'");
+            if (empty($usuarios)) {
+                // No traemos todos los usuarios por defecto (podría ser muy costoso)
+                if (isset($_GET['show_all']) && $_GET['show_all'] == '1') {
+                    $usuarios = $wpdb->get_results("SELECT u.ID, u.display_name, u.user_email FROM {$wpdb->users} u");
+                } else {
+                    echo '<div class="notice notice-info"><p>No se encontraron usuarios con meta <code>wc_horas_acumuladas</code>. Si quieres revisar todos los usuarios (consulta pesada), <a href="' . esc_url(add_query_arg('show_all', '1')) . '">haz clic aquí</a>.</p></div>';
+                    // cerrar tabla y wrapper
+                    echo '</div>';
+                    return;
                 }
             }
 
-            // Unir productos a mostrar: union de compradas/usadas/productos configurados
-            $productos_mostrar = array_unique(array_merge(array_keys($compradas), array_keys($usadas), $productos_horas));
+            // Requiere acción explícita para ejecutar la validación (evita cargas pesadas)
+            $do_validate = isset($_GET['do_validate']) && $_GET['do_validate'] == '1';
+            echo '<form method="get" style="margin-bottom:12px;">';
+            echo '<input type="hidden" name="page" value="validation-hours">';
+            echo '<input type="hidden" name="product_horas" value="' . intval($selected_horas) . '">';
+            echo '<input type="hidden" name="do_validate" value="1">';
+            submit_button('Calcular validación', 'primary', '', false);
+            echo '</form>';
 
-            foreach ($productos_mostrar as $pid) {
-                $nombre_producto = null;
-                $prod = wc_get_product($pid);
-                $nombre_producto = $prod ? $prod->get_name() : ('Producto #' . $pid);
+            if (!$do_validate) {
+                echo '<div class="notice notice-warning"><p>Pulsa "Calcular validación" para procesar las órdenes y calcular horas usadas por usuario. Esto puede ser costoso en sitios con muchas órdenes.</p></div>';
+                echo '</div>';
+                return;
+            }
 
-                $horas_compradas = isset($compradas[$pid]) ? $compradas[$pid] : 0;
-                $horas_usadas = isset($usadas[$pid]) ? $usadas[$pid] : 0;
-                $saldo = $horas_compradas - $horas_usadas;
+            echo '<table class="widefat fixed striped">';
+            echo '<thead><tr><th>Usuario</th><th>Email</th><th>Producto horas</th><th>Horas compradas</th><th>Horas usadas</th><th>Saldo</th></tr></thead><tbody>';
 
-                // Solo mostrar filas relevantes (si el usuario no tiene nada y saldo 0, mostrar en collapsed)
-                if ($horas_compradas === 0 && $horas_usadas === 0) continue;
+
+            // Productos de horas configurados
+            $productos_horas = WCUPH_Config::get_productos_con_horas();
+
+            // Determinar la lista de productos booking que consumen el producto de horas seleccionado
+            $bookings_para_horas = [];
+            foreach ($relaciones as $b => $h) {
+                if ($h === $selected_horas) $bookings_para_horas[] = (int)$b;
+            }
+
+            foreach ($usuarios as $usuario) {
+                $user_id = intval($usuario->ID);
+
+                // Calcular horas compradas y usadas para el producto seleccionado
+                $compradas = 0;
+                $usadas = 0;
+
+                // Intentar leer horas compradas desde meta (rápido)
+                $meta = get_user_meta($user_id, 'wc_horas_acumuladas', true);
+                if (is_array($meta) && isset($meta[$selected_horas])) {
+                    $compradas = (int)$meta[$selected_horas];
+                }
+
+                // Obtener órdenes del usuario si la función existe
+                $orders = [];
+                if (function_exists('wc_get_orders')) {
+                    $orders = wc_get_orders([
+                        'customer' => $user_id,
+                        'limit' => -1,
+                        'status' => ['completed', 'processing', 'on-hold', 'pending']
+                    ]);
+                    if (!is_array($orders)) $orders = [];
+                }
+
+                // Si no tenemos compradas en meta, intentar calcularlas explorando órdenes (costoso)
+                if ($compradas === 0 && function_exists('wc_get_orders')) {
+                    try {
+                        $orders_for_calc = wc_get_orders([
+                            'customer' => $user_id,
+                            'limit' => -1,
+                            'status' => ['completed', 'processing', 'on-hold', 'pending']
+                        ]);
+                        if (is_array($orders_for_calc)) {
+                            foreach ($orders_for_calc as $order) {
+                                if (!is_object($order) || !method_exists($order, 'get_items')) continue;
+                                foreach ($order->get_items() as $item) {
+                                    $pid = (int)(method_exists($item, 'get_product_id') ? $item->get_product_id() : 0);
+                                    $qty = (int)(method_exists($item, 'get_quantity') ? $item->get_quantity() : 1);
+                                    // Si el item es el producto de horas seleccionado
+                                    if ($pid === $selected_horas) {
+                                        $horas_unit = $this->obtener_horas_desde_item_variation($item);
+                                        if ($horas_unit > 0) $compradas += $horas_unit * $qty;
+                                    }
+                                    // Si el item es un booking relacionado, sumar usada
+                                    if (in_array($pid, $bookings_para_horas, true)) {
+                                        $dur = $this->obtener_duracion_desde_item($item);
+                                        if ($dur > 0) $usadas += $dur * $qty;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception $e) {
+                        // registrar pero no detener todo
+                        if (function_exists('wcuph_log')) wcuph_log('[WARN] Error calculando horas desde órdenes: ' . $e->getMessage());
+                    }
+                } else {
+                    // Ya tenemos compradas desde meta: solo calcular usadas
+                    if (function_exists('wc_get_orders')) {
+                        try {
+                            $orders_for_used = wc_get_orders([
+                                'customer' => $user_id,
+                                'limit' => -1,
+                                'status' => ['completed', 'processing', 'on-hold', 'pending']
+                            ]);
+                            if (is_array($orders_for_used)) {
+                                foreach ($orders_for_used as $order) {
+                                    if (!is_object($order) || !method_exists($order, 'get_items')) continue;
+                                    foreach ($order->get_items() as $item) {
+                                        $pid = (int)(method_exists($item, 'get_product_id') ? $item->get_product_id() : 0);
+                                        $qty = (int)(method_exists($item, 'get_quantity') ? $item->get_quantity() : 1);
+                                        if (in_array($pid, $bookings_para_horas, true)) {
+                                            $dur = $this->obtener_duracion_desde_item($item);
+                                            if ($dur > 0) $usadas += $dur * $qty;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (Exception $e) {
+                            if (function_exists('wcuph_log')) wcuph_log('[WARN] Error calculando horas usadas: ' . $e->getMessage());
+                        }
+                    }
+                }
+
+                // Mostrar solo una fila por usuario para el producto seleccionado
+                $saldo = $compradas - $usadas;
+                if ($compradas === 0 && $usadas === 0) continue;
+
+                $prod_sel = function_exists('wc_get_product') ? wc_get_product($selected_horas) : false;
+                $nombre_producto = $prod_sel ? $prod_sel->get_name() : ('Producto #' . intval($selected_horas));
 
                 echo '<tr>';
                 echo '<td>' . esc_html($usuario->display_name) . '</td>';
                 echo '<td>' . esc_html($usuario->user_email) . '</td>';
-                echo '<td>' . esc_html($nombre_producto) . ' (ID: ' . $pid . ')</td>';
-                echo '<td>' . esc_html($horas_compradas) . '</td>';
-                echo '<td>' . esc_html($horas_usadas) . '</td>';
+                echo '<td>' . esc_html($nombre_producto) . ' (ID: ' . intval($selected_horas) . ')</td>';
+                echo '<td>' . esc_html($compradas) . '</td>';
+                echo '<td>' . esc_html($usadas) . '</td>';
                 echo '<td>' . esc_html($saldo) . '</td>';
                 echo '</tr>';
             }
+
+            echo '</tbody></table>';
+        } catch (Exception $e) {
+            // Registrar el error y mostrar un aviso en admin
+            if (function_exists('wcuph_log')) {
+                wcuph_log('[ERROR] Error en pantalla Validación de Horas: ' . $e->getMessage());
+            }
+            echo '<div class="notice notice-error"><p>Error al generar la pantalla de validación. Revisa los logs.</p></div>';
         }
 
-        echo '</tbody></table>';
         echo '</div>';
     }
 
