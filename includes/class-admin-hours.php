@@ -82,8 +82,65 @@ class WCUPH_Admin_Hours
         return $datos;
     }
 
+    /**
+     * Diagnóstico temporal: vuelca los bookings crudos de un usuario.
+     * Uso: users.php?page=horas-usuarios&wcuph_debug=USER_ID
+     */
+    private function render_debug($user_id)
+    {
+        echo '<div class="wrap"><h1>Debug reservas — usuario #' . esc_html($user_id) . '</h1>';
+
+        $reservas = get_posts([
+            'post_type'      => 'wc_booking',
+            'posts_per_page' => -1,
+            'post_status'    => 'any',
+            'meta_query'     => [
+                [
+                    'key'   => '_booking_customer_id',
+                    'value' => $user_id,
+                ],
+            ],
+        ]);
+
+        if (empty($reservas)) {
+            echo '<p>No se encontraron bookings para este usuario (con post_status=any).</p></div>';
+            return;
+        }
+
+        echo '<table class="widefat fixed striped"><thead><tr>';
+        echo '<th>ID</th><th>post_status</th><th>_booking_start (raw)</th><th>_booking_end (raw)</th><th>ts inicio</th><th>duración (h)</th>';
+        echo '</tr></thead><tbody>';
+
+        foreach ($reservas as $reserva) {
+            $inicio    = get_post_meta($reserva->ID, '_booking_start', true);
+            $fin       = get_post_meta($reserva->ID, '_booking_end', true);
+            $ts_inicio = wcuph_booking_fecha_a_timestamp($inicio);
+            $ts_fin    = wcuph_booking_fecha_a_timestamp($fin);
+            $dur       = ($ts_inicio !== false && $ts_fin !== false) ? (($ts_fin - $ts_inicio) / 3600) : 'N/A';
+
+            echo '<tr>';
+            echo '<td>#' . esc_html($reserva->ID) . '</td>';
+            echo '<td><code>' . esc_html(get_post_status($reserva)) . '</code></td>';
+            echo '<td><code>' . esc_html($inicio) . '</code></td>';
+            echo '<td><code>' . esc_html($fin) . '</code></td>';
+            echo '<td>' . esc_html($ts_inicio !== false ? wp_date('Y-m-d H:i', $ts_inicio) : 'NO PARSEABLE') . '</td>';
+            echo '<td>' . esc_html($dur) . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+        echo '<p><strong>Estados considerados válidos actualmente:</strong> <code>' . esc_html(implode(', ', wcuph_estados_reserva_validos())) . '</code></p>';
+        echo '</div>';
+    }
+
     public function render_admin_page()
     {
+        // Modo diagnóstico temporal.
+        if (isset($_GET['wcuph_debug'])) {
+            $this->render_debug((int) $_GET['wcuph_debug']);
+            return;
+        }
+
         // Exportar CSV si se solicita
         if (isset($_GET['export_csv'])) {
             $this->export_csv();

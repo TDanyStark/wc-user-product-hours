@@ -98,6 +98,54 @@ function wcuph_get_purchased_hours_in_range($user_id, $fecha_desde, $fecha_hasta
 }
 
 /**
+ * Estados de booking de WooCommerce Bookings que representan una reserva
+ * confirmada y/o pagada. Se incluyen variantes con y sin prefijo "wc-".
+ *
+ * @return string[]
+ */
+function wcuph_estados_reserva_validos() {
+    return [
+        'confirmed',
+        'paid',
+        'complete',
+        'wc-confirmed',
+        'wc-paid',
+        'wc-complete',
+    ];
+}
+
+/**
+ * Convierte un valor de fecha de booking (_booking_start / _booking_end) a timestamp.
+ * WooCommerce Bookings puede almacenarlo como:
+ *  - string "YmdHis" (ej. "20260530143000")
+ *  - string "Y-m-d H:i:s"
+ *  - timestamp unix numérico
+ *
+ * @param string|int $valor
+ * @return int|false Timestamp o false si no se puede interpretar.
+ */
+function wcuph_booking_fecha_a_timestamp($valor) {
+    if (empty($valor)) {
+        return false;
+    }
+
+    // Formato YmdHis (14 dígitos).
+    if (is_string($valor) && preg_match('/^\d{14}$/', $valor)) {
+        $dt = DateTime::createFromFormat('YmdHis', $valor);
+        return $dt ? $dt->getTimestamp() : false;
+    }
+
+    // Timestamp unix numérico (10 dígitos aprox.).
+    if (is_numeric($valor)) {
+        return (int) $valor;
+    }
+
+    // Fallback: cadenas tipo "Y-m-d H:i:s".
+    $ts = strtotime($valor);
+    return $ts !== false ? $ts : false;
+}
+
+/**
  * Calcula las horas RESERVADAS por un usuario dentro de un rango de fechas,
  * a partir de los bookings (solo estados confirmados y pagados).
  *
@@ -110,7 +158,7 @@ function wcuph_get_reserved_hours_in_range($user_id, $fecha_desde, $fecha_hasta)
     $reservas = get_posts([
         'post_type'      => 'wc_booking',
         'posts_per_page' => -1,
-        'post_status'    => ['confirmed', 'paid'],
+        'post_status'    => wcuph_estados_reserva_validos(),
         'meta_query'     => [
             [
                 'key'   => '_booking_customer_id',
@@ -126,12 +174,13 @@ function wcuph_get_reserved_hours_in_range($user_id, $fecha_desde, $fecha_hasta)
     foreach ($reservas as $reserva) {
         $inicio = get_post_meta($reserva->ID, '_booking_start', true);
         $fin    = get_post_meta($reserva->ID, '_booking_end', true);
-        if (!$inicio || !$fin) {
+
+        $ts_inicio = wcuph_booking_fecha_a_timestamp($inicio);
+        $ts_fin    = wcuph_booking_fecha_a_timestamp($fin);
+
+        if ($ts_inicio === false || $ts_fin === false) {
             continue;
         }
-
-        $ts_inicio = strtotime($inicio);
-        $ts_fin    = strtotime($fin);
 
         // Solo contar reservas cuyo inicio cae dentro del rango.
         if ($ts_inicio < $ts_desde || $ts_inicio > $ts_hasta) {
