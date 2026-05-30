@@ -43,14 +43,40 @@ class WCUPH_Admin_Hours
     }
 
     /**
+     * Resuelve el estado de los checkboxes de filtro.
+     *
+     * Como un checkbox desmarcado no se envía en $_GET, usamos un campo oculto
+     * "wcuph_filtros" como marcador de envío del formulario:
+     *  - Sin marcador (primera carga): se aplican los valores por defecto (ambos activos).
+     *  - Con marcador: se respeta exactamente lo que el usuario marcó/desmarcó.
+     *
+     * @return array{0:bool,1:bool} [solo_con_horas, solo_con_diferencia]
+     */
+    private function get_filtros_checkbox()
+    {
+        $formulario_enviado = isset($_GET['wcuph_filtros']);
+
+        if (!$formulario_enviado) {
+            // Primera carga: ambos filtros activos por defecto.
+            return [true, true];
+        }
+
+        return [
+            isset($_GET['solo_con_horas']),
+            isset($_GET['solo_con_diferencia']),
+        ];
+    }
+
+    /**
      * Obtiene los datos agregados por usuario (excluyendo administradores).
      *
      * @param string $fecha_desde
      * @param string $fecha_hasta
      * @param bool   $solo_con_horas
+     * @param bool   $solo_con_diferencia
      * @return array<int,array{id:int,nombre:string,email:string,compradas:int,reservadas:float,diferencia:float}>
      */
-    private function obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas)
+    private function obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas, $solo_con_diferencia)
     {
         $user_query = new WP_User_Query([
             'role__not_in' => ['administrator'],
@@ -64,8 +90,13 @@ class WCUPH_Admin_Hours
         foreach ($user_query->get_results() as $usuario) {
             $compradas  = wcuph_get_purchased_hours_in_range($usuario->ID, $fecha_desde, $fecha_hasta);
             $reservadas = wcuph_get_reserved_hours_in_range($usuario->ID, $fecha_desde, $fecha_hasta);
+            $diferencia = $compradas - $reservadas;
 
             if ($solo_con_horas && $compradas == 0 && $reservadas == 0) {
+                continue;
+            }
+
+            if ($solo_con_diferencia && $diferencia == 0) {
                 continue;
             }
 
@@ -75,7 +106,7 @@ class WCUPH_Admin_Hours
                 'email'      => $usuario->user_email,
                 'compradas'  => $compradas,
                 'reservadas' => $reservadas,
-                'diferencia' => $compradas - $reservadas,
+                'diferencia' => $diferencia,
             ];
         }
 
@@ -91,9 +122,9 @@ class WCUPH_Admin_Hours
         }
 
         list($fecha_desde, $fecha_hasta) = $this->get_rango_fechas();
-        $solo_con_horas = isset($_GET['solo_con_horas']);
+        list($solo_con_horas, $solo_con_diferencia) = $this->get_filtros_checkbox();
 
-        $datos = $this->obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas);
+        $datos = $this->obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas, $solo_con_diferencia);
 
         echo '<div class="wrap"><h1>Horas por Usuario</h1>';
 
@@ -102,17 +133,22 @@ class WCUPH_Admin_Hours
         // Formulario de filtros
         echo '<form method="get" style="margin-bottom: 20px;">';
         echo '<input type="hidden" name="page" value="horas-usuarios">';
+        // Marcador de envío: permite detectar checkboxes desmarcados intencionalmente.
+        echo '<input type="hidden" name="wcuph_filtros" value="1">';
         echo '<label style="margin-right: 10px;">Desde: <input type="date" name="fecha_desde" value="' . esc_attr($fecha_desde) . '"></label>';
         echo '<label style="margin-right: 10px;">Hasta: <input type="date" name="fecha_hasta" value="' . esc_attr($fecha_hasta) . '"></label>';
         echo '<label style="margin-right: 10px;"><input type="checkbox" name="solo_con_horas" value="1" ' . checked($solo_con_horas, true, false) . '> Mostrar solo usuarios con horas</label> ';
+        echo '<label style="margin-right: 10px;"><input type="checkbox" name="solo_con_diferencia" value="1" ' . checked($solo_con_diferencia, true, false) . '> Mostrar solo diferencia distinta de 0</label> ';
         submit_button('Filtrar', 'secondary', '', false);
 
         $export_url = add_query_arg([
-            'page'           => 'horas-usuarios',
-            'export_csv'     => 1,
-            'fecha_desde'    => $fecha_desde,
-            'fecha_hasta'    => $fecha_hasta,
-            'solo_con_horas' => $solo_con_horas ? 1 : null,
+            'page'                => 'horas-usuarios',
+            'export_csv'          => 1,
+            'wcuph_filtros'       => 1,
+            'fecha_desde'         => $fecha_desde,
+            'fecha_hasta'         => $fecha_hasta,
+            'solo_con_horas'      => $solo_con_horas ? 1 : null,
+            'solo_con_diferencia' => $solo_con_diferencia ? 1 : null,
         ], admin_url('users.php'));
         echo ' <a href="' . esc_url($export_url) . '" class="button button-primary">Exportar CSV</a>';
         echo '</form>';
@@ -177,9 +213,9 @@ class WCUPH_Admin_Hours
     public function export_csv()
     {
         list($fecha_desde, $fecha_hasta) = $this->get_rango_fechas();
-        $solo_con_horas = isset($_GET['solo_con_horas']);
+        list($solo_con_horas, $solo_con_diferencia) = $this->get_filtros_checkbox();
 
-        $datos = $this->obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas);
+        $datos = $this->obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas, $solo_con_diferencia);
 
         // Limpiar cualquier output previo
         if (ob_get_level()) {
