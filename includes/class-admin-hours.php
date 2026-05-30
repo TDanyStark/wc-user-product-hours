@@ -153,20 +153,17 @@ class WCUPH_Admin_Hours
         echo ' <a href="' . esc_url($export_url) . '" class="button button-primary">Exportar CSV</a>';
         echo '</form>';
 
-        // Estilos para filas clicables
         echo '<style>
-            .wcuph-row-clickable { cursor: pointer; }
-            .wcuph-row-clickable:hover { background-color: #f0f6fc !important; }
             .wcuph-negativo { color: #b32d2e; font-weight: 600; }
         </style>';
 
         echo '<table class="widefat fixed striped">';
         echo '<thead><tr>';
-        echo '<th>Usuario</th><th>Email</th><th>Horas Compradas</th><th>Horas Reservadas</th><th>Diferencia</th>';
+        echo '<th>Usuario</th><th>Email</th><th>Horas Compradas</th><th>Horas Reservadas</th><th>Diferencia</th><th>Acciones</th>';
         echo '</tr></thead><tbody>';
 
         if (empty($datos)) {
-            echo '<tr><td colspan="5">No se encontraron usuarios para el rango seleccionado.</td></tr>';
+            echo '<tr><td colspan="6">No se encontraron usuarios para el rango seleccionado.</td></tr>';
         } else {
             foreach ($datos as $fila) {
                 $url_usuario   = get_edit_user_link($fila['id']);
@@ -174,27 +171,18 @@ class WCUPH_Admin_Hours
                 $reservadas    = $this->formatear_horas($fila['reservadas']);
                 $diferencia    = $this->formatear_horas($fila['diferencia']);
 
-                echo '<tr class="wcuph-row-clickable" data-href="' . esc_url($url_usuario) . '">';
+                echo '<tr>';
                 echo '<td>' . esc_html($fila['nombre']) . '</td>';
                 echo '<td>' . esc_html($fila['email']) . '</td>';
                 echo '<td>' . esc_html($fila['compradas']) . '</td>';
                 echo '<td>' . esc_html($reservadas) . '</td>';
                 echo '<td' . $clase_dif . '>' . esc_html($diferencia) . '</td>';
+                echo '<td><a href="' . esc_url($url_usuario) . '" class="button button-small" target="_blank" rel="noopener">Ver usuario</a></td>';
                 echo '</tr>';
             }
         }
 
         echo '</tbody></table>';
-
-        // Navegación al hacer clic en la fila
-        echo '<script>
-            document.querySelectorAll(".wcuph-row-clickable").forEach(function (row) {
-                row.addEventListener("click", function () {
-                    var href = this.getAttribute("data-href");
-                    if (href) { window.location.href = href; }
-                });
-            });
-        </script>';
 
         echo '</div>';
     }
