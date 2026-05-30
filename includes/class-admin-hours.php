@@ -20,76 +20,166 @@ class WCUPH_Admin_Hours
         );
     }
 
+    /**
+     * Resuelve el rango de fechas a partir de $_GET, con el semestre actual como valor por defecto.
+     *
+     * @return array{0:string,1:string} [fecha_desde, fecha_hasta] en formato Y-m-d
+     */
+    private function get_rango_fechas()
+    {
+        list($def_desde, $def_hasta) = wcuph_get_current_semester_range();
+
+        $desde = isset($_GET['fecha_desde']) ? sanitize_text_field(wp_unslash($_GET['fecha_desde'])) : '';
+        $hasta = isset($_GET['fecha_hasta']) ? sanitize_text_field(wp_unslash($_GET['fecha_hasta'])) : '';
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $desde)) {
+            $desde = $def_desde;
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $hasta)) {
+            $hasta = $def_hasta;
+        }
+
+        return [$desde, $hasta];
+    }
+
+    /**
+     * Obtiene los datos agregados por usuario (excluyendo administradores).
+     *
+     * @param string $fecha_desde
+     * @param string $fecha_hasta
+     * @param bool   $solo_con_horas
+     * @return array<int,array{id:int,nombre:string,email:string,compradas:int,reservadas:float,diferencia:float}>
+     */
+    private function obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas)
+    {
+        $user_query = new WP_User_Query([
+            'role__not_in' => ['administrator'],
+            'fields'       => ['ID', 'display_name', 'user_email'],
+            'orderby'      => 'display_name',
+            'order'        => 'ASC',
+        ]);
+
+        $datos = [];
+
+        foreach ($user_query->get_results() as $usuario) {
+            $compradas  = wcuph_get_purchased_hours_in_range($usuario->ID, $fecha_desde, $fecha_hasta);
+            $reservadas = wcuph_get_reserved_hours_in_range($usuario->ID, $fecha_desde, $fecha_hasta);
+
+            if ($solo_con_horas && $compradas == 0 && $reservadas == 0) {
+                continue;
+            }
+
+            $datos[] = [
+                'id'         => (int) $usuario->ID,
+                'nombre'     => $usuario->display_name,
+                'email'      => $usuario->user_email,
+                'compradas'  => $compradas,
+                'reservadas' => $reservadas,
+                'diferencia' => $compradas - $reservadas,
+            ];
+        }
+
+        return $datos;
+    }
+
     public function render_admin_page()
     {
-        global $wpdb;
-
         // Exportar CSV si se solicita
         if (isset($_GET['export_csv'])) {
             $this->export_csv();
             exit;
         }
 
-        // Filtrar usuarios con horas > 0
-        $solo_con_horas = isset($_GET['solo_con_horas']) ? true : false;
+        list($fecha_desde, $fecha_hasta) = $this->get_rango_fechas();
+        $solo_con_horas = isset($_GET['solo_con_horas']);
 
-        $usuarios = $wpdb->get_results("
-            SELECT u.ID, u.display_name, u.user_email, um.meta_value
-            FROM {$wpdb->users} u
-            LEFT JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
-            WHERE um.meta_key = 'wc_horas_acumuladas'
-        ");
+        $datos = $this->obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas);
 
-        echo '<div class="wrap"><h1>Horas Acumuladas por Usuario</h1>';
+        echo '<div class="wrap"><h1>Horas por Usuario</h1>';
 
-        echo '<form method="get">';
+        echo '<p class="description" style="margin: 10px 0 20px;">Las horas <strong>compradas</strong> se calculan desde las órdenes completadas dentro del rango. Las horas <strong>reservadas</strong> consideran solo reservas confirmadas y pagadas cuyo inicio cae en el rango. No se muestran usuarios administradores.</p>';
+
+        // Formulario de filtros
+        echo '<form method="get" style="margin-bottom: 20px;">';
         echo '<input type="hidden" name="page" value="horas-usuarios">';
-        echo '<label><input type="checkbox" name="solo_con_horas" value="1" ' . checked($solo_con_horas, true, false) . '> Mostrar solo usuarios con horas</label> ';
+        echo '<label style="margin-right: 10px;">Desde: <input type="date" name="fecha_desde" value="' . esc_attr($fecha_desde) . '"></label>';
+        echo '<label style="margin-right: 10px;">Hasta: <input type="date" name="fecha_hasta" value="' . esc_attr($fecha_hasta) . '"></label>';
+        echo '<label style="margin-right: 10px;"><input type="checkbox" name="solo_con_horas" value="1" ' . checked($solo_con_horas, true, false) . '> Mostrar solo usuarios con horas</label> ';
         submit_button('Filtrar', 'secondary', '', false);
-        echo ' <a href="' . admin_url('users.php?page=horas-usuarios&export_csv=1') . '" class="button button-primary">Exportar CSV</a>';
+
+        $export_url = add_query_arg([
+            'page'           => 'horas-usuarios',
+            'export_csv'     => 1,
+            'fecha_desde'    => $fecha_desde,
+            'fecha_hasta'    => $fecha_hasta,
+            'solo_con_horas' => $solo_con_horas ? 1 : null,
+        ], admin_url('users.php'));
+        echo ' <a href="' . esc_url($export_url) . '" class="button button-primary">Exportar CSV</a>';
         echo '</form>';
 
+        // Estilos para filas clicables
+        echo '<style>
+            .wcuph-row-clickable { cursor: pointer; }
+            .wcuph-row-clickable:hover { background-color: #f0f6fc !important; }
+            .wcuph-negativo { color: #b32d2e; font-weight: 600; }
+        </style>';
+
         echo '<table class="widefat fixed striped">';
-        echo '<thead><tr><th>Usuario</th><th>Email</th><th>Producto</th><th>Horas</th></tr></thead><tbody>';
+        echo '<thead><tr>';
+        echo '<th>Usuario</th><th>Email</th><th>Horas Compradas</th><th>Horas Reservadas</th><th>Diferencia</th>';
+        echo '</tr></thead><tbody>';
 
-        foreach ($usuarios as $usuario) {
-            $horas = maybe_unserialize($usuario->meta_value);
-            if (!is_array($horas)) continue;
+        if (empty($datos)) {
+            echo '<tr><td colspan="5">No se encontraron usuarios para el rango seleccionado.</td></tr>';
+        } else {
+            foreach ($datos as $fila) {
+                $url_usuario   = get_edit_user_link($fila['id']);
+                $clase_dif     = $fila['diferencia'] < 0 ? ' class="wcuph-negativo"' : '';
+                $reservadas    = $this->formatear_horas($fila['reservadas']);
+                $diferencia    = $this->formatear_horas($fila['diferencia']);
 
-            $tiene_horas = false;
-
-            foreach ($horas as $producto_id => $cantidad) {
-                if ($cantidad > 0) {
-                    $tiene_horas = true;
-                    $producto = wc_get_product($producto_id);
-                    $nombre_producto = $producto ? $producto->get_name() : "Producto #$producto_id";
-
-                    echo '<tr>';
-                    echo '<td>' . $usuario->display_name . '</td>';
-                    echo '<td>' . $usuario->user_email . '</td>';
-                    echo '<td>' . $nombre_producto . '</td>';
-                    echo '<td>' . $cantidad . '</td>';
-                    echo '</tr>';
-                }
-            }
-
-            if (!$tiene_horas && !$solo_con_horas) {
-                echo '<tr>';
-                echo '<td>' . $usuario->display_name . '</td>';
-                echo '<td>' . $usuario->user_email . '</td>';
-                echo '<td>-</td>';
-                echo '<td>0</td>';
+                echo '<tr class="wcuph-row-clickable" data-href="' . esc_url($url_usuario) . '">';
+                echo '<td>' . esc_html($fila['nombre']) . '</td>';
+                echo '<td>' . esc_html($fila['email']) . '</td>';
+                echo '<td>' . esc_html($fila['compradas']) . '</td>';
+                echo '<td>' . esc_html($reservadas) . '</td>';
+                echo '<td' . $clase_dif . '>' . esc_html($diferencia) . '</td>';
                 echo '</tr>';
             }
         }
 
         echo '</tbody></table>';
+
+        // Navegación al hacer clic en la fila
+        echo '<script>
+            document.querySelectorAll(".wcuph-row-clickable").forEach(function (row) {
+                row.addEventListener("click", function () {
+                    var href = this.getAttribute("data-href");
+                    if (href) { window.location.href = href; }
+                });
+            });
+        </script>';
+
         echo '</div>';
+    }
+
+    /**
+     * Formatea las horas eliminando decimales innecesarios (10.0 -> 10, 10.5 -> 10.5).
+     */
+    private function formatear_horas($valor)
+    {
+        if (floor($valor) == $valor) {
+            return (string) (int) $valor;
+        }
+        return rtrim(rtrim(number_format((float) $valor, 2, '.', ''), '0'), '.');
     }
 
     public function export_csv()
     {
-        global $wpdb;
+        list($fecha_desde, $fecha_hasta) = $this->get_rango_fechas();
+        $solo_con_horas = isset($_GET['solo_con_horas']);
+
+        $datos = $this->obtener_datos_usuarios($fecha_desde, $fecha_hasta, $solo_con_horas);
 
         // Limpiar cualquier output previo
         if (ob_get_level()) {
@@ -104,37 +194,16 @@ class WCUPH_Admin_Hours
 
         $output = fopen('php://output', 'w');
 
-        fputcsv($output, ['Usuario', 'Email', 'Producto', 'Horas']);
+        fputcsv($output, ['Usuario', 'Email', 'Horas Compradas', 'Horas Reservadas', 'Diferencia']);
 
-        // Verificar si se está filtrando por usuarios con horas
-        $solo_con_horas = isset($_GET['solo_con_horas']) ? true : false;
-
-        $usuarios = $wpdb->get_results("
-            SELECT u.ID, u.display_name, u.user_email, um.meta_value
-            FROM {$wpdb->users} u
-            LEFT JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
-            WHERE um.meta_key = 'wc_horas_acumuladas'
-        ");
-
-        foreach ($usuarios as $usuario) {
-            $horas = maybe_unserialize($usuario->meta_value);
-            if (!is_array($horas)) continue;
-
-            $tiene_horas = false;
-
-            foreach ($horas as $producto_id => $cantidad) {
-                if ($cantidad > 0) {
-                    $tiene_horas = true;
-                    $producto = wc_get_product($producto_id);
-                    $nombre_producto = $producto ? $producto->get_name() : "Producto #$producto_id";
-                    fputcsv($output, [$usuario->display_name, $usuario->user_email, $nombre_producto, $cantidad]);
-                }
-            }
-
-            // Si no tiene horas y estamos filtrando solo usuarios con horas, no incluir
-            if (!$tiene_horas && $solo_con_horas) {
-                continue;
-            }
+        foreach ($datos as $fila) {
+            fputcsv($output, [
+                $fila['nombre'],
+                $fila['email'],
+                $fila['compradas'],
+                $this->formatear_horas($fila['reservadas']),
+                $this->formatear_horas($fila['diferencia']),
+            ]);
         }
 
         fclose($output);

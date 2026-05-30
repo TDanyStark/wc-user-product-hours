@@ -81,31 +81,11 @@ class Product_Hours_Handler
 
   private function obtener_horas_variacion($variation_id)
   {
-    $variation = wc_get_product($variation_id);
     wcuph_log("[OBTENER_HORAS] Procesando variación ID: {$variation_id}");
 
-    // 1. Intentar extraer del formato "- X" al final del nombre
-    $nombre = $variation->get_name();
-    wcuph_log("[OBTENER_HORAS] Analizando nombre: {$nombre}");
-
-    // Dividir por guiones y tomar el último segmento
-    $partes = explode('-', $nombre);
-    $ultimo_segmento = trim(end($partes));
-    wcuph_log("[OBTENER_HORAS] Último segmento: {$ultimo_segmento}");
-
-    // Buscar números en el último segmento
-    preg_match('/\d+/', $ultimo_segmento, $matches);
-
-    if (!empty($matches[0])) {
-      $horas = (int)$matches[0];
-      wcuph_log("[OBTENER_HORAS] Horas detectadas en último segmento: {$horas}");
-      return $horas;
-    }
-
-    // 2. Último recurso: buscar cualquier número en todo el nombre
-    preg_match('/\d+/', $nombre, $matches);
-    $horas = isset($matches[0]) ? (int)$matches[0] : 0;
-    wcuph_log("[OBTENER_HORAS] Último recurso - Número encontrado: {$horas}");
+    // Lógica de parsing centralizada en el helper compartido.
+    $horas = wcuph_parse_horas_from_variation($variation_id);
+    wcuph_log("[OBTENER_HORAS] Horas detectadas: {$horas}");
 
     return $horas;
   }
